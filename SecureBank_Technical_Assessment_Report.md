@@ -252,6 +252,11 @@
 - Priority: High
 - Description: "System slows down when processing multiple transactions"
 - Impact: Poor user experience during peak usage
+- status: [DONE]
+- explanations:
+  - Root cause: `getTransactions` contained an N+1 query problem, fetching the account details for *every* transaction in a loop. Additionally, the database lacked indexes on foreign keys (`account_id`, `user_id`) and sorting columns (`created_at`).
+  - Fix: Refactored `getTransactions` to reuse the already-fetched account details, eliminating the loop query. Added database indexes on `transactions(account_id)`, `transactions(created_at)`, `accounts(user_id)`, and `sessions(user_id)`.
+  - Reason: Reduces database load from O(N) to O(1) for transaction fetching and speeds up lookups and sorting significantly.
 
 ### Ticket PERF-408: Resource Leak [CRITICAL]
 - Reporter: System Monitoring
