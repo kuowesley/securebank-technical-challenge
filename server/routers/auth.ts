@@ -9,6 +9,19 @@ import { eq } from "drizzle-orm";
 
 const MIN_AGE = 18;
 const MAX_AGE = 120;
+const MIN_PASSWORD_LENGTH = 12;
+const COMMON_PASSWORDS = [
+  "password",
+  "12345678",
+  "qwerty",
+  "letmein",
+  "admin",
+  "welcome",
+  "iloveyou",
+  "123456789",
+  "password1",
+  "abc123",
+];
 
 const validateDateOfBirth = (value: string) => {
   const match = /^\d{4}-\d{2}-\d{2}$/.exec(value);
@@ -58,12 +71,61 @@ const validateDateOfBirth = (value: string) => {
   return { valid: true };
 };
 
+const validatePassword = (value: string, ctx: z.RefinementCtx) => {
+  if (value.length < MIN_PASSWORD_LENGTH) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.too_small,
+      minimum: MIN_PASSWORD_LENGTH,
+      type: "string",
+      inclusive: true,
+      message: `Password must be at least ${MIN_PASSWORD_LENGTH} characters`,
+    });
+  }
+
+  if (COMMON_PASSWORDS.includes(value.toLowerCase())) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "Password is too common",
+    });
+  }
+
+  if (!/[a-z]/.test(value)) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "Password must contain a lowercase letter",
+    });
+  }
+
+  if (!/[A-Z]/.test(value)) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "Password must contain an uppercase letter",
+    });
+  }
+
+  if (!/\d/.test(value)) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "Password must contain a number",
+    });
+  }
+
+  if (!/[^A-Za-z0-9]/.test(value)) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "Password must contain a symbol",
+    });
+  }
+};
+
 export const authRouter = router({
   signup: publicProcedure
     .input(
       z.object({
         email: z.string().email().toLowerCase(),
-        password: z.string().min(8),
+        password: z.string().superRefine((value, ctx) => {
+          validatePassword(value, ctx);
+        }),
         firstName: z.string().min(1),
         lastName: z.string().min(1),
         phoneNumber: z.string().regex(/^\+?\d{10,15}$/),

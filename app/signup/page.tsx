@@ -23,6 +23,19 @@ type SignupFormData = {
 
 const MIN_AGE = 18;
 const MAX_AGE = 120;
+const MIN_PASSWORD_LENGTH = 12;
+const COMMON_PASSWORDS = [
+  "password",
+  "12345678",
+  "qwerty",
+  "letmein",
+  "admin",
+  "welcome",
+  "iloveyou",
+  "123456789",
+  "password1",
+  "abc123",
+];
 
 const validateDateOfBirth = (value: string) => {
   const match = /^\d{4}-\d{2}-\d{2}$/.exec(value);
@@ -152,15 +165,18 @@ export default function SignupPage() {
                   {...register("password", {
                     required: "Password is required",
                     minLength: {
-                      value: 8,
-                      message: "Password must be at least 8 characters",
+                      value: MIN_PASSWORD_LENGTH,
+                      message: `Password must be at least ${MIN_PASSWORD_LENGTH} characters`,
                     },
                     validate: {
                       notCommon: (value) => {
-                        const commonPasswords = ["password", "12345678", "qwerty"];
-                        return !commonPasswords.includes(value.toLowerCase()) || "Password is too common";
+                        return !COMMON_PASSWORDS.includes(value.toLowerCase()) || "Password is too common";
                       },
+                      hasLowercase: (value) => /[a-z]/.test(value) || "Password must contain a lowercase letter",
+                      hasUppercase: (value) => /[A-Z]/.test(value) || "Password must contain an uppercase letter",
                       hasNumber: (value) => /\d/.test(value) || "Password must contain a number",
+                      hasSymbol: (value) =>
+                        /[^A-Za-z0-9]/.test(value) || "Password must contain a symbol",
                     },
                   })}
                   type="password"

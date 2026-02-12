@@ -85,6 +85,11 @@
 - Priority: Critical
 - Description: "Password validation only checks length, not complexity"
 - Impact: Account security risks
+- status: [DONE]
+- explanations:
+  - Root cause: Client checks only length and a simple number/common-password rule, while the server enforced only a minimum length, allowing weak passwords through.
+  - Fix: Enforced a stronger policy on both client and server (min 12 chars, uppercase, lowercase, number, symbol, and block common passwords).
+  - Reason: Improves account security and ensures the server rejects weak passwords even if client validation is bypassed.
 
 ### Ticket VAL-209: Amount Input Issues [MEDIUM]
 - Reporter: Robert Lee
