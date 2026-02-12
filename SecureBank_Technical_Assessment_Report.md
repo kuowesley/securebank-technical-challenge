@@ -218,3 +218,8 @@
 - Priority: Critical
 - Description: "Database connections remain open"
 - Impact: System resource exhaustion
+- status: [DONE]
+- explanations:
+  - Root cause: The database initialization logic in `lib/db/index.ts` created a secondary connection (`const conn = new Database(dbPath)`) on every startup/reload without using or closing it.
+  - Fix: Removed the redundant connection creation and the unused `connections` array.
+  - Reason: Prevents file descriptor exhaustion and database lock issues by ensuring only the primary Drizzle connection is used.
