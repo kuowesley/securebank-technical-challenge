@@ -18,6 +18,11 @@
   3. Start typing
 - Expected: Text should be clearly visible against the background
 - Actual: Text is white on white background
+- status: [DONE]
+- explanations:
+  - Root cause: The global dark mode styles (`--foreground: #ededed`) caused input text to render as white, while the input backgrounds remained white by default.
+  - Fix: Explicitly added `text-gray-900` to all form input fields in signup, login, and modal components.
+  - Reason: Ensures high contrast and readability regardless of the system's dark mode preference, as the input backgrounds are white.
 
 ## Validation Issues
 

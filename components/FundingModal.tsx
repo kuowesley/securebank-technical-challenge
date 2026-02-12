@@ -89,7 +89,7 @@ export function FundingModal({ accountId, onClose, onSuccess }: FundingModalProp
                   },
                 })}
                 type="text"
-                className="pl-7 block w-full rounded-md border-gray-300 focus:ring-blue-500 focus:border-blue-500 sm:text-sm p-2 border"
+                className="pl-7 block w-full rounded-md border-gray-300 focus:ring-blue-500 focus:border-blue-500 sm:text-sm p-2 border text-gray-900"
                 placeholder="0.00"
               />
             </div>
@@ -129,7 +129,7 @@ export function FundingModal({ accountId, onClose, onSuccess }: FundingModalProp
                 },
               })}
               type="text"
-              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm p-2 border"
+              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm p-2 border text-gray-900"
               placeholder={fundingType === "card" ? "1234567812345678" : "123456789"}
             />
             {errors.accountNumber && <p className="mt-1 text-sm text-red-600">{errors.accountNumber.message}</p>}
@@ -147,7 +147,7 @@ export function FundingModal({ accountId, onClose, onSuccess }: FundingModalProp
                   },
                 })}
                 type="text"
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm p-2 border"
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm p-2 border text-gray-900"
                 placeholder="123456789"
               />
               {errors.routingNumber && <p className="mt-1 text-sm text-red-600">{errors.routingNumber.message}</p>}
