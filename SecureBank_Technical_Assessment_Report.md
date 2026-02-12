@@ -208,6 +208,11 @@
 - Priority: High
 - Description: "Expiring sessions still considered valid until exact expiry time"
 - Impact: Security risk near session expiration
+- status: [DONE]
+- explanations:
+  - Root cause: Sessions had a long fixed duration (7 days) with no renewal logic, leaving them valid even if the user went inactive, or forcing abrupt logouts.
+  - Fix: Reduced session duration to 1 hour and implemented sliding expiration. If a user makes a request with <30 mins remaining, the session is extended by another hour.
+  - Reason: Balances security (short windows) with usability (active users stay logged in).
 
 ### Ticket PERF-404: Transaction Sorting [MEDIUM]
 - Reporter: Jane Doe
