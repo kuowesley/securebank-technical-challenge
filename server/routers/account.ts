@@ -77,7 +77,13 @@ export const accountRouter = router({
     .input(
       z.object({
         accountId: z.number(),
-        amount: z.number().positive(),
+        amount: z
+          .number()
+          .min(0.01)
+          .refine((value) => Number.isFinite(value), { message: "Amount must be a valid number" })
+          .refine((value) => Math.abs(value * 100 - Math.round(value * 100)) < 1e-8, {
+            message: "Amount cannot have more than 2 decimal places",
+          }),
         fundingSource: z.object({
           type: z.enum(["card", "bank"]),
           accountNumber: z.string(),
@@ -86,7 +92,7 @@ export const accountRouter = router({
       })
     )
     .mutation(async ({ input, ctx }) => {
-      const amount = parseFloat(input.amount.toString());
+      const amount = Math.round(input.amount * 100) / 100;
 
       // Verify account belongs to user
       const account = await db

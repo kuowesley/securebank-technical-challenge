@@ -57,6 +57,11 @@
 - Priority: High
 - Description: "I was able to submit a funding request for $0.00"
 - Impact: Creates unnecessary transaction records
+- status: [DONE]
+- explanations:
+  - Root cause: The client allowed a minimum amount of $0.00, and the server only enforced a generic positive check without guarding against non-finite values.
+  - Fix: Enforced a minimum of $0.01 on both client and server, added a server-side finite number check, and normalized funding amounts to two decimal places.
+  - Reason: Prevents zero-dollar transactions, blocks malformed numeric inputs, and reduces floating precision drift for more robust funding behavior.
 
 ### Ticket VAL-206: Card Number Validation [CRITICAL]
 - Reporter: David Brown

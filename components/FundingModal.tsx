@@ -38,6 +38,10 @@ export function FundingModal({ accountId, onClose, onSuccess }: FundingModalProp
 
     try {
       const amount = parseFloat(data.amount);
+      if (!Number.isFinite(amount)) {
+        setError("Amount must be a valid number");
+        return;
+      }
 
       await fundAccountMutation.mutateAsync({
         accountId,
@@ -75,7 +79,7 @@ export function FundingModal({ accountId, onClose, onSuccess }: FundingModalProp
                     message: "Invalid amount format",
                   },
                   min: {
-                    value: 0.0,
+                    value: 0.01,
                     message: "Amount must be at least $0.01",
                   },
                   max: {
