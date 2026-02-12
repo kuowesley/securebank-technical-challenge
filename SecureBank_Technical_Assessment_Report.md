@@ -143,6 +143,11 @@
 - Priority: High
 - Description: "Multiple valid sessions per user, no invalidation"
 - Impact: Security risk from unauthorized access
+- status: [DONE]
+- explanations:
+  - Root cause: The system allowed multiple valid sessions per user, enabling potential unauthorized access if a session token was compromised or left active.
+  - Fix: Implemented a "single session" policy by invalidating all existing sessions for a user upon login.
+  - Reason: Reduces the attack surface by ensuring only the most recent login session is valid.
 
 ## Logic and Performance Issues
 

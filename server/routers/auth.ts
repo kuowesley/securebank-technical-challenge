@@ -136,6 +136,9 @@ export const authRouter = router({
       const expiresAt = new Date();
       expiresAt.setDate(expiresAt.getDate() + 7);
 
+      // Invalidate existing sessions (enforce single session policy)
+      await db.delete(sessions).where(eq(sessions.userId, user.id));
+
       await db.insert(sessions).values({
         userId: user.id,
         token,
