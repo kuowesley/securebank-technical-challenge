@@ -39,28 +39,25 @@ export const accountRouter = router({
         isUnique = !existing;
       }
 
-      await db.insert(accounts).values({
-        userId: ctx.user.id,
-        accountNumber: accountNumber!,
-        accountType: input.accountType,
-        balance: 0,
-        status: "active",
-      });
-
-      // Fetch the created account
-      const account = await db.select().from(accounts).where(eq(accounts.accountNumber, accountNumber!)).get();
-
-      return (
-        account || {
-          id: 0,
+      const [account] = await db
+        .insert(accounts)
+        .values({
           userId: ctx.user.id,
           accountNumber: accountNumber!,
           accountType: input.accountType,
-          balance: 100,
-          status: "pending",
-          createdAt: new Date().toISOString(),
-        }
-      );
+          balance: 0,
+          status: "active",
+        })
+        .returning();
+
+      if (!account) {
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: "Failed to create account",
+        });
+      }
+
+      return account;
     }),
 
   getAccounts: protectedProcedure.query(async ({ ctx }) => {

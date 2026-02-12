@@ -156,6 +156,11 @@
 - Priority: Critical
 - Description: "New accounts show $100 balance when DB operations fail"
 - Impact: Incorrect balance displays
+- status: [DONE]
+- explanations:
+  - Root cause: The account creation logic included a fallback that returned a fake account object with a hardcoded $100 balance if the subsequent database fetch failed.
+  - Fix: Refactored the insertion logic to use `db.insert(...).returning()`, ensuring the created account is returned atomically and immediately. Removed the misleading fallback data.
+  - Reason: Ensures that the API returns the actual account state (balance $0) or fails with an error if the creation is unsuccessful, preventing financial data inconsistencies.
 
 ### Ticket PERF-402: Logout Issues [HIGH]
 - Reporter: QA Team
