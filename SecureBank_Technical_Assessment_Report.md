@@ -201,6 +201,11 @@
 - Priority: Critical
 - Description: "Account balances become incorrect after many transactions"
 - Impact: Critical financial discrepancies
+- status: [DONE]
+- explanations:
+  - Root cause: The balance calculation logic contained a loop that added the transaction amount in 100 tiny increments, introducing significant floating-point precision errors.
+  - Fix: Removed the loop and replaced it with a single, direct addition, rounded to two decimal places (`Math.round((balance + amount) * 100) / 100`).
+  - Reason: Eliminates accumulated floating-point errors, ensuring accurate balance calculations and storage.
 
 ### Ticket PERF-407: Performance Degradation [HIGH]
 - Reporter: DevOps
