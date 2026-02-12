@@ -11,6 +11,31 @@ function generateAccountNumber(): string {
     .padStart(10, "0");
 }
 
+function normalizeCardNumber(value: string) {
+  return value.replace(/[\s-]/g, "");
+}
+
+function isValidCardNumber(value: string) {
+  const normalized = normalizeCardNumber(value);
+  if (!/^\d{13,19}$/.test(normalized)) {
+    return false;
+  }
+
+  let sum = 0;
+  let shouldDouble = false;
+  for (let i = normalized.length - 1; i >= 0; i -= 1) {
+    let digit = Number(normalized[i]);
+    if (shouldDouble) {
+      digit *= 2;
+      if (digit > 9) digit -= 9;
+    }
+    sum += digit;
+    shouldDouble = !shouldDouble;
+  }
+
+  return sum % 10 === 0;
+}
+
 export const accountRouter = router({
   createAccount: protectedProcedure
     .input(
@@ -84,11 +109,47 @@ export const accountRouter = router({
           .refine((value) => Math.abs(value * 100 - Math.round(value * 100)) < 1e-8, {
             message: "Amount cannot have more than 2 decimal places",
           }),
-        fundingSource: z.object({
-          type: z.enum(["card", "bank"]),
-          accountNumber: z.string(),
-          routingNumber: z.string().optional(),
-        }),
+        fundingSource: z
+          .object({
+            type: z.enum(["card", "bank"]),
+            accountNumber: z.string(),
+            routingNumber: z.string().optional(),
+          })
+          .superRefine((value, ctx) => {
+            if (value.type === "card") {
+              if (!isValidCardNumber(value.accountNumber)) {
+                ctx.addIssue({
+                  code: z.ZodIssueCode.custom,
+                  message: "Invalid card number",
+                  path: ["accountNumber"],
+                });
+              }
+            }
+
+            if (value.type === "bank") {
+              if (!/^\d{4,17}$/.test(value.accountNumber)) {
+                ctx.addIssue({
+                  code: z.ZodIssueCode.custom,
+                  message: "Invalid account number",
+                  path: ["accountNumber"],
+                });
+              }
+
+              if (!value.routingNumber) {
+                ctx.addIssue({
+                  code: z.ZodIssueCode.custom,
+                  message: "Routing number is required",
+                  path: ["routingNumber"],
+                });
+              } else if (!/^\d{9}$/.test(value.routingNumber)) {
+                ctx.addIssue({
+                  code: z.ZodIssueCode.custom,
+                  message: "Routing number must be 9 digits",
+                  path: ["routingNumber"],
+                });
+              }
+            }
+          }),
       })
     )
     .mutation(async ({ input, ctx }) => {

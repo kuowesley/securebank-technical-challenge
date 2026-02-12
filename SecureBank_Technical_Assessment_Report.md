@@ -68,6 +68,11 @@
 - Priority: Critical
 - Description: "System accepts invalid card numbers"
 - Impact: Failed transactions and customer frustration
+- status: [DONE]
+- explanations:
+  - Root cause: Client validation only checked Visa/Mastercard prefixes, and the server did not validate card numbers at all, allowing invalid or unsupported numbers through.
+  - Fix: Implemented Luhn-based card validation with 13–19 digit support, allowed space/dash input normalization, and added server-side checks; also added bank account number and routing checks when funding by bank.
+  - Reason: Accepts valid card formats while blocking invalid numbers, and enforces consistent validation server-side for robustness.
 
 ### Ticket VAL-207: Routing Number Optional [HIGH]
 - Reporter: Support Team

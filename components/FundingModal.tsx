@@ -17,6 +17,31 @@ type FundingFormData = {
   routingNumber?: string;
 };
 
+const normalizeCardNumber = (value: string) => value.replace(/[\s-]/g, "");
+
+const isValidCardNumber = (value: string) => {
+  const normalized = normalizeCardNumber(value);
+  if (!/^\d{13,19}$/.test(normalized)) {
+    return false;
+  }
+
+  let sum = 0;
+  let shouldDouble = false;
+  for (let i = normalized.length - 1; i >= 0; i -= 1) {
+    let digit = Number(normalized[i]);
+    if (shouldDouble) {
+      digit *= 2;
+      if (digit > 9) digit -= 9;
+    }
+    sum += digit;
+    shouldDouble = !shouldDouble;
+  }
+
+  return sum % 10 === 0;
+};
+
+const isValidBankAccountNumber = (value: string) => /^\d{4,17}$/.test(value);
+
 export function FundingModal({ accountId, onClose, onSuccess }: FundingModalProps) {
   const [error, setError] = useState("");
   const {
@@ -116,14 +141,14 @@ export function FundingModal({ accountId, onClose, onSuccess }: FundingModalProp
             <input
               {...register("accountNumber", {
                 required: `${fundingType === "card" ? "Card" : "Account"} number is required`,
-                pattern: {
-                  value: fundingType === "card" ? /^\d{16}$/ : /^\d+$/,
-                  message: fundingType === "card" ? "Card number must be 16 digits" : "Invalid account number",
-                },
                 validate: {
                   validCard: (value) => {
                     if (fundingType !== "card") return true;
-                    return value.startsWith("4") || value.startsWith("5") || "Invalid card number";
+                    return isValidCardNumber(value) || "Invalid card number";
+                  },
+                  validAccount: (value) => {
+                    if (fundingType !== "bank") return true;
+                    return isValidBankAccountNumber(value) || "Invalid account number";
                   },
                 },
               })}
