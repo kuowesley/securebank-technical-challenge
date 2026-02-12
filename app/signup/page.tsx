@@ -21,6 +21,57 @@ type SignupFormData = {
   zipCode: string;
 };
 
+const MIN_AGE = 18;
+const MAX_AGE = 120;
+
+const validateDateOfBirth = (value: string) => {
+  const match = /^\d{4}-\d{2}-\d{2}$/.exec(value);
+  if (!match) {
+    return "Date of birth must be a valid date";
+  }
+
+  const [yearString, monthString, dayString] = value.split("-");
+  const year = Number(yearString);
+  const month = Number(monthString);
+  const day = Number(dayString);
+
+  if (!Number.isInteger(year) || !Number.isInteger(month) || !Number.isInteger(day)) {
+    return "Date of birth must be a valid date";
+  }
+
+  const date = new Date(year, month - 1, day);
+  if (
+    date.getFullYear() !== year ||
+    date.getMonth() !== month - 1 ||
+    date.getDate() !== day
+  ) {
+    return "Date of birth must be a valid date";
+  }
+
+  const today = new Date();
+  const todayDate = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+
+  if (date > todayDate) {
+    return "Date of birth cannot be in the future";
+  }
+
+  let age = todayDate.getFullYear() - year;
+  const monthDiff = todayDate.getMonth() - (month - 1);
+  if (monthDiff < 0 || (monthDiff === 0 && todayDate.getDate() < day)) {
+    age -= 1;
+  }
+
+  if (age < MIN_AGE) {
+    return `You must be at least ${MIN_AGE} years old`;
+  }
+
+  if (age > MAX_AGE) {
+    return `Age must be ${MAX_AGE} or younger`;
+  }
+
+  return true;
+};
+
 export default function SignupPage() {
   const router = useRouter();
   const [step, setStep] = useState(1);
@@ -189,7 +240,10 @@ export default function SignupPage() {
                   Date of Birth
                 </label>
                 <input
-                  {...register("dateOfBirth", { required: "Date of birth is required" })}
+                  {...register("dateOfBirth", {
+                    required: "Date of birth is required",
+                    validate: validateDateOfBirth,
+                  })}
                   type="date"
                   className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm p-2 border"
                 />

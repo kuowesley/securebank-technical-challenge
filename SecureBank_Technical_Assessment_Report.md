@@ -34,6 +34,11 @@
 - Priority: Critical
 - Description: "I accidentally entered my birth date as 2025 and the system accepted it."
 - Impact: Potential compliance issues with accepting minors
+- status: [DONE]
+- explanations:
+  - Root cause: `dateOfBirth` only validated as a required string on the client and server, so future dates (like 2025) were accepted and stored.
+  - Fix: Added DOB validation on both client and server to require a real YYYY-MM-DD date, reject future dates, and enforce an age range of 18–120.
+  - Reason: Ensures compliance with minimum-age requirements, prevents unrealistic ages, and blocks invalid data even if the client validation is bypassed.
 
 ### Ticket VAL-203: State Code Validation [MEDIUM]
 - Reporter: Alex Thompson

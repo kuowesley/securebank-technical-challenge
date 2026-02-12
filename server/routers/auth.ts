@@ -7,6 +7,57 @@ import { db } from "@/lib/db";
 import { users, sessions } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
 
+const MIN_AGE = 18;
+const MAX_AGE = 120;
+
+const validateDateOfBirth = (value: string) => {
+  const match = /^\d{4}-\d{2}-\d{2}$/.exec(value);
+  if (!match) {
+    return { valid: false, message: "Date of birth must be a valid date" };
+  }
+
+  const [yearString, monthString, dayString] = value.split("-");
+  const year = Number(yearString);
+  const month = Number(monthString);
+  const day = Number(dayString);
+
+  if (!Number.isInteger(year) || !Number.isInteger(month) || !Number.isInteger(day)) {
+    return { valid: false, message: "Date of birth must be a valid date" };
+  }
+
+  const date = new Date(year, month - 1, day);
+  if (
+    date.getFullYear() !== year ||
+    date.getMonth() !== month - 1 ||
+    date.getDate() !== day
+  ) {
+    return { valid: false, message: "Date of birth must be a valid date" };
+  }
+
+  const today = new Date();
+  const todayDate = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+
+  if (date > todayDate) {
+    return { valid: false, message: "Date of birth cannot be in the future" };
+  }
+
+  let age = todayDate.getFullYear() - year;
+  const monthDiff = todayDate.getMonth() - (month - 1);
+  if (monthDiff < 0 || (monthDiff === 0 && todayDate.getDate() < day)) {
+    age -= 1;
+  }
+
+  if (age < MIN_AGE) {
+    return { valid: false, message: `You must be at least ${MIN_AGE} years old` };
+  }
+
+  if (age > MAX_AGE) {
+    return { valid: false, message: `Age must be ${MAX_AGE} or younger` };
+  }
+
+  return { valid: true };
+};
+
 export const authRouter = router({
   signup: publicProcedure
     .input(
@@ -16,7 +67,15 @@ export const authRouter = router({
         firstName: z.string().min(1),
         lastName: z.string().min(1),
         phoneNumber: z.string().regex(/^\+?\d{10,15}$/),
-        dateOfBirth: z.string(),
+        dateOfBirth: z.string().superRefine((value, ctx) => {
+          const validation = validateDateOfBirth(value);
+          if (!validation.valid) {
+            ctx.addIssue({
+              code: z.ZodIssueCode.custom,
+              message: validation.message || "Date of birth must be a valid date",
+            });
+          }
+        }),
         ssn: z.string().regex(/^\d{9}$/),
         address: z.string().min(1),
         city: z.string().min(1),
