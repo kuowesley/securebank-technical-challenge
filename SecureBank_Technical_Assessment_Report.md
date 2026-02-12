@@ -145,8 +145,8 @@
 - Impact: Security risk from unauthorized access
 - status: [DONE]
 - explanations:
-  - Root cause: The system allowed multiple valid sessions per user, enabling potential unauthorized access if a session token was compromised or left active.
-  - Fix: Implemented a "single session" policy by invalidating all existing sessions for a user upon login.
+  - Root cause: The application allowed multiple concurrent sessions for the same user without invalidating old ones.
+  - Fix: Implemented session invalidation on login, deleting all existing sessions for the user before creating a new one (single session policy).
   - Reason: Reduces the attack surface by ensuring only the most recent login session is valid.
 
 ## Logic and Performance Issues

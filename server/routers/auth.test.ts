@@ -19,9 +19,7 @@ vi.mock('@/lib/db', () => ({
         returning: vi.fn(), // Mock returning for insert operations if needed
       })),
     })),
-    delete: vi.fn(() => ({
-      where: vi.fn(),
-    })),
+    delete: vi.fn(),
     // Add other mocked methods if your tests use them
   },
 }));
@@ -39,6 +37,7 @@ const caller = authRouter.createCaller({
 describe('authRouter.signup dateOfBirth validation', () => {
   let mockValues: any;
   let mockGet: any;
+  let mockDelete: any;
 
   const baseInput = {
     email: 'test@example.com',
@@ -68,6 +67,11 @@ describe('authRouter.signup dateOfBirth validation', () => {
       values: mockValues,
     } as any));
 
+    mockDelete = vi.fn(() => Promise.resolve());
+    vi.mocked(db.delete).mockImplementation(() => ({
+      where: mockDelete,
+    } as any));
+
     // Mock for checking existing user (first select call)
     mockGet.mockResolvedValueOnce(undefined);
     // Mock for returning created user (second select call)
@@ -80,7 +84,9 @@ describe('authRouter.signup dateOfBirth validation', () => {
     });
 
     vi.mocked(bcrypt.hash).mockResolvedValue('hashedpassword' as any);
+    vi.mocked(bcrypt.compare).mockResolvedValue(true as any);
   });
+
 
   it('should encrypt SSN and store hash on signup', async () => {
     const input = { ...baseInput, dateOfBirth: '2000-01-01' };
@@ -153,41 +159,24 @@ describe('authRouter.signup dateOfBirth validation', () => {
     expect(result.user).toBeDefined();
     expect(result.token).toBeDefined();
   });
-});
 
-describe('authRouter.login', () => {
-  it('should invalidate existing sessions on successful login', async () => {
-    // Setup mocks specific to login
-    const mockUser = {
-      id: 1,
-      email: 'test@example.com',
-      password: 'hashedpassword',
-      firstName: 'Test',
-      lastName: 'User',
-    };
-
-    // select().from().where().get() returns user
-    const mockGet = vi.fn().mockResolvedValue(mockUser);
-    const mockWhere = vi.fn(() => ({ get: mockGet }));
-    const mockFrom = vi.fn(() => ({ where: mockWhere }));
-    vi.mocked(db.select).mockReturnValue({ from: mockFrom } as any);
-
-    // bcrypt compare success
-    vi.mocked(bcrypt.compare).mockResolvedValue(true as any);
-
-    // delete mock
-    const mockDeleteWhere = vi.fn();
-    vi.mocked(db.delete).mockReturnValue({ where: mockDeleteWhere } as any);
-
-    // insert mock
-    const mockValues = vi.fn();
-    vi.mocked(db.insert).mockReturnValue({ values: mockValues } as any);
-
-    await caller.login({ email: 'test@example.com', password: 'password' });
-
-    expect(db.delete).toHaveBeenCalled();
-    expect(mockDeleteWhere).toHaveBeenCalled();
-    expect(db.insert).toHaveBeenCalled();
+  it('should invalidate existing sessions on login', async () => {
+    // Reset mocks from beforeEach to avoid "undefined" return for user lookup
+    mockGet.mockReset();
+    
+    const input = { email: 'test@example.com', password: 'StrongP@ssw0rd!' };
+    const user = { id: 1, email: 'test@example.com', password: 'hashedpassword' };
+    
+    // Mock user lookup for login
+    mockGet.mockResolvedValueOnce(user);
+    
+    // Call login
+    const result = await caller.login(input);
+    
+    // Verify db.delete was called
+    expect(mockDelete).toHaveBeenCalled();
+    // Also verify new session was created
+    expect(mockValues).toHaveBeenCalled();
+    expect(result.token).toBeDefined();
   });
 });
-
