@@ -179,12 +179,22 @@
 - Priority: Medium
 - Description: "Transaction order seems random sometimes"
 - Impact: Confusion when reviewing transaction history
+- status: [DONE]
+- explanations:
+  - Root cause: `getTransactions` returned records without an `ORDER BY` clause, so the database order was undefined (usually insertion order, but not guaranteed).
+  - Fix: Added `.orderBy(desc(transactions.createdAt))` to the query.
+  - Reason: Ensures transactions always appear in reverse chronological order (newest first).
 
 ### Ticket PERF-405: Missing Transactions [CRITICAL]
 - Reporter: Multiple Users
 - Priority: Critical
 - Description: "Not all transactions appear in history after multiple funding events"
 - Impact: Users cannot verify all their transactions
+- status: [DONE]
+- explanations:
+  - Root cause: The `fundAccount` mutation returned the *oldest* transaction due to a missing sort on `limit(1)`, and the frontend did not re-fetch the transaction list after funding.
+  - Fix: Updated `fundAccount` to return the newest transaction, and added `utils.account.getTransactions.invalidate()` to the funding success handler.
+  - Reason: Ensures the immediate UI update is correct and the transaction list refreshes to show the new entry.
 
 ### Ticket PERF-406: Balance Calculation [CRITICAL]
 - Reporter: Finance Team
