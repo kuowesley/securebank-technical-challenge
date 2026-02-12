@@ -36,7 +36,7 @@ const caller = authRouter.createCaller({
 describe('authRouter.signup dateOfBirth validation', () => {
   const baseInput = {
     email: 'test@example.com',
-    password: 'password123',
+    password: 'StrongP@ssw0rd!',
     firstName: 'Test',
     lastName: 'User',
     phoneNumber: '1234567890',

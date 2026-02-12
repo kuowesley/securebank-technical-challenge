@@ -4,37 +4,8 @@ import { protectedProcedure, router } from "../trpc";
 import { db } from "@/lib/db";
 import { accounts, transactions } from "@/lib/db/schema";
 import { eq, and } from "drizzle-orm";
-
-function generateAccountNumber(): string {
-  return Math.floor(Math.random() * 1000000000)
-    .toString()
-    .padStart(10, "0");
-}
-
-function normalizeCardNumber(value: string) {
-  return value.replace(/[\s-]/g, "");
-}
-
-function isValidCardNumber(value: string) {
-  const normalized = normalizeCardNumber(value);
-  if (!/^\d{13,19}$/.test(normalized)) {
-    return false;
-  }
-
-  let sum = 0;
-  let shouldDouble = false;
-  for (let i = normalized.length - 1; i >= 0; i -= 1) {
-    let digit = Number(normalized[i]);
-    if (shouldDouble) {
-      digit *= 2;
-      if (digit > 9) digit -= 9;
-    }
-    sum += digit;
-    shouldDouble = !shouldDouble;
-  }
-
-  return sum % 10 === 0;
-}
+import { isValidCardNumber } from "../utils/validation";
+import { generateAccountNumber } from "../utils/account";
 
 export const accountRouter = router({
   createAccount: protectedProcedure
