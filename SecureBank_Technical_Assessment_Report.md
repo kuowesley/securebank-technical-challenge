@@ -20,9 +20,9 @@
 - Actual: Text is white on white background
 - status: [DONE]
 - explanations:
-  - Root cause: The global dark mode styles (`--foreground: #ededed`) caused input text to render as white, while the input backgrounds remained white by default.
-  - Fix: Explicitly added `text-gray-900` to all form input fields in signup, login, and modal components.
-  - Reason: Ensures high contrast and readability regardless of the system's dark mode preference, as the input backgrounds are white.
+  - Root cause: Global dark mode styles (`--foreground: #ededed`) caused text (inputs, labels, spans) to render white on white backgrounds (modals, forms).
+  - Fix: Applied `text-gray-900` to the container elements of pages and modals (Signup, Login, FundingModal, AccountCreationModal).
+  - Reason: Enforces consistent dark text context for all white-background components, ensuring readability for inputs, labels, and helper text regardless of the system theme.
 
 ## Validation Issues
 
