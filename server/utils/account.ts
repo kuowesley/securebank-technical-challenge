@@ -1,5 +1,8 @@
+import crypto from "crypto";
+
 export const generateAccountNumber = (): string => {
-  return Math.floor(Math.random() * 1000000000)
-    .toString()
-    .padStart(10, "0");
+  // Generate a secure random integer between 0 and 9,999,999,999
+  const num = crypto.randomInt(0, 10000000000);
+  return num.toString().padStart(10, "0");
 };
+

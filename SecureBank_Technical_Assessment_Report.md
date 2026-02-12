@@ -121,6 +121,11 @@
 - Priority: High
 - Description: "Account numbers generated using Math.random()"
 - Impact: Potentially predictable account numbers
+- status: [DONE]
+- explanations:
+  - Root cause: Account numbers were generated using `Math.random()`, which is not cryptographically secure and can be predictable.
+  - Fix: Replaced `Math.random()` with `crypto.randomInt()`, generating a secure random integer in the full 10-digit range (0 to 9,999,999,999).
+  - Reason: Ensures account numbers are unpredictable and secure.
 
 ### Ticket SEC-303: XSS Vulnerability [CRITICAL]
 - Reporter: Security Audit
