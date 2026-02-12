@@ -5,7 +5,14 @@ import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { trpc } from "@/lib/trpc/client";
 import Link from "next/link";
-import { validateDateOfBirth, validatePassword, MIN_PASSWORD_LENGTH } from "@/lib/utils/validation";
+import {
+  validateDateOfBirth,
+  validatePassword,
+  validateEmail,
+  validateState,
+  validatePhoneNumber,
+  MIN_PASSWORD_LENGTH,
+} from "@/lib/utils/validation";
 
 type SignupFormData = {
   email: string;
@@ -83,9 +90,9 @@ export default function SignupPage() {
                 <input
                   {...register("email", {
                     required: "Email is required",
-                    pattern: {
-                      value: /^\S+@\S+$/i,
-                      message: "Invalid email address",
+                    validate: (value) => {
+                      const result = validateEmail(value);
+                      return result.valid || result.message!;
                     },
                   })}
                   type="email"
@@ -170,9 +177,9 @@ export default function SignupPage() {
                 <input
                   {...register("phoneNumber", {
                     required: "Phone number is required",
-                    pattern: {
-                      value: /^\d{10}$/,
-                      message: "Phone number must be 10 digits",
+                    validate: (value) => {
+                      const result = validatePhoneNumber(value);
+                      return result.valid || result.message!;
                     },
                   })}
                   type="tel"
@@ -255,9 +262,9 @@ export default function SignupPage() {
                   <input
                     {...register("state", {
                       required: "State is required",
-                      pattern: {
-                        value: /^[A-Z]{2}$/,
-                        message: "Use 2-letter state code",
+                      validate: (value) => {
+                        const result = validateState(value);
+                        return result.valid || result.message!;
                       },
                     })}
                     type="text"

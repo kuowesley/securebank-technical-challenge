@@ -6,14 +6,26 @@ import { publicProcedure, router } from "../trpc";
 import { db } from "@/lib/db";
 import { users, sessions } from "@/lib/db/schema";
 import { eq, or } from "drizzle-orm";
-import { validateDateOfBirth, validatePassword } from "@/lib/utils/validation";
+import { validateDateOfBirth, validatePassword, validateEmail, validateState, validatePhoneNumber } from "@/lib/utils/validation";
 import { encrypt, hash } from "../utils/encryption";
 
 export const authRouter = router({
   signup: publicProcedure
     .input(
       z.object({
-        email: z.string().email().toLowerCase(),
+        email: z
+          .string()
+          .email()
+          .toLowerCase()
+          .superRefine((value, ctx) => {
+            const validation = validateEmail(value);
+            if (!validation.valid) {
+              ctx.addIssue({
+                code: z.ZodIssueCode.custom,
+                message: validation.message,
+              });
+            }
+          }),
         password: z.string().superRefine((value, ctx) => {
           const result = validatePassword(value);
           if (!result.valid) {
@@ -27,7 +39,17 @@ export const authRouter = router({
         }),
         firstName: z.string().min(1),
         lastName: z.string().min(1),
-        phoneNumber: z.string().regex(/^\+?\d{10,15}$/),
+        phoneNumber: z
+          .string()
+          .superRefine((value, ctx) => {
+            const result = validatePhoneNumber(value);
+            if (!result.valid) {
+              ctx.addIssue({
+                code: z.ZodIssueCode.custom,
+                message: result.message,
+              });
+            }
+          }),
         dateOfBirth: z.string().superRefine((value, ctx) => {
           const validation = validateDateOfBirth(value);
           if (!validation.valid) {
@@ -40,7 +62,19 @@ export const authRouter = router({
         ssn: z.string().regex(/^\d{9}$/),
         address: z.string().min(1),
         city: z.string().min(1),
-        state: z.string().length(2).toUpperCase(),
+        state: z
+          .string()
+          .length(2)
+          .toUpperCase()
+          .superRefine((value, ctx) => {
+            const result = validateState(value);
+            if (!result.valid) {
+              ctx.addIssue({
+                code: z.ZodIssueCode.custom,
+                message: result.message,
+              });
+            }
+          }),
         zipCode: z.string().regex(/^\d{5}$/),
       })
     )
@@ -106,7 +140,7 @@ export const authRouter = router({
   login: publicProcedure
     .input(
       z.object({
-        email: z.string().email(),
+        email: z.string().email().toLowerCase(),
         password: z.string(),
       })
     )
@@ -155,21 +189,20 @@ export const authRouter = router({
     }),
 
   logout: publicProcedure.mutation(async ({ ctx }) => {
-    if (ctx.user) {
-      // Delete session from database
-      let token: string | undefined;
-      if ("cookies" in ctx.req) {
-        token = (ctx.req as any).cookies.session;
-      } else {
-        const cookieHeader = ctx.req.headers.get?.("cookie") || (ctx.req.headers as any).cookie;
-        token = cookieHeader
-          ?.split("; ")
-          .find((c: string) => c.startsWith("session="))
-          ?.split("=")[1];
-      }
-      if (token) {
-        await db.delete(sessions).where(eq(sessions.token, token));
-      }
+    // Try to get token from cookies regardless of whether ctx.user is set
+    let token: string | undefined;
+    if ("cookies" in ctx.req) {
+      token = (ctx.req as any).cookies.session;
+    } else {
+      const cookieHeader = ctx.req.headers.get?.("cookie") || (ctx.req.headers as any).cookie;
+      token = cookieHeader
+        ?.split("; ")
+        .find((c: string) => c.startsWith("session="))
+        ?.split("=")[1];
+    }
+
+    if (token) {
+      await db.delete(sessions).where(eq(sessions.token, token));
     }
 
     if ("setHeader" in ctx.res) {
@@ -178,6 +211,6 @@ export const authRouter = router({
       (ctx.res as Headers).set("Set-Cookie", `session=; Path=/; HttpOnly; SameSite=Strict; Max-Age=0`);
     }
 
-    return { success: true, message: ctx.user ? "Logged out successfully" : "No active session" };
+    return { success: true, message: "Logged out successfully" };
   }),
 });

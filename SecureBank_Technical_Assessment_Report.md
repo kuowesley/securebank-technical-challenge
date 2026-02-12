@@ -28,6 +28,11 @@
 - Examples:
   1. Accepts "TEST@example.com" but converts to lowercase without notifying user
   2. No validation for common typos like ".con" instead of ".com"
+- status: [DONE]
+- explanations:
+  - Root cause: Loose regex pattern validation and lack of typo checking. Silent lowercasing caused login issues if user typed uppercase later.
+  - Fix: Implemented strict regex validation and added typo detection (e.g., .con -> .com suggestions). Ensured consistent lowercasing on both signup and login.
+  - Reason: Prevents invalid emails and ensures user can access their account regardless of input case.
 
 ### Ticket VAL-202: Date of Birth Validation [CRITICAL]
 - Reporter: Maria Garcia
@@ -45,12 +50,22 @@
 - Priority: Medium
 - Description: "The system accepted 'XX' as a valid state code."
 - Impact: Address verification issues for banking communications
+- status: [DONE]
+- explanations:
+  - Root cause: The validation only checked for a 2-letter uppercase string, allowing invalid state codes like "XX".
+  - Fix: Implemented a validation check against a list of valid US state/territory codes (e.g., CA, NY).
+  - Reason: Ensures that only real US state codes are accepted for address verification.
 
 ### Ticket VAL-204: Phone Number Format [MEDIUM]
 - Reporter: John Smith
 - Priority: Medium
 - Description: "International phone numbers aren't properly validated. The system accepts any string of numbers."
 - Impact: Unable to contact customers for important notifications
+- status: [DONE]
+- explanations:
+  - Root cause: Frontend regex only allowed 10-digit US numbers, blocking valid international formats. Backend allowed a loose range (10-15 digits).
+  - Fix: Implemented E.164 format validation (`^\+?[1-9]\d{7,14}$`) on both frontend and backend to support international numbers.
+  - Reason: Ensures that phone numbers are valid and contactable globally.
 
 ### Ticket VAL-205: Zero Amount Funding [CRITICAL]
 - Reporter: Lisa Johnson
@@ -79,6 +94,11 @@
 - Priority: High
 - Description: "Bank transfers are being submitted without routing numbers"
 - Impact: Failed ACH transfers
+- status: [DONE]
+- explanations:
+  - Root cause: The `routingNumber` field was marked as optional in the Zod schema and not validated conditionally for bank transfers.
+  - Fix: Added a conditional check in `superRefine` to require `routingNumber` when `fundingType` is "bank" (implemented alongside VAL-206).
+  - Reason: Ensures that all bank transfers include a valid routing number to prevent ACH failures.
 
 ### Ticket VAL-208: Weak Password Requirements [CRITICAL]
 - Reporter: Security Team
@@ -96,12 +116,22 @@
 - Priority: Medium
 - Description: "System accepts amounts with multiple leading zeros"
 - Impact: Confusion in transaction records
+- status: [DONE]
+- explanations:
+  - Root cause: The regex pattern allowed any number of digits before the decimal point, including multiple leading zeros (e.g., "005").
+  - Fix: Updated the regex to `^(0|[1-9]\d*)(\.\d{0,2})?$`, which strictly enforces standard numeric formatting (no leading zeros unless "0.xx").
+  - Reason: Improves UX and prevents ambiguous or sloppy input formats.
 
 ### Ticket VAL-210: Card Type Detection [HIGH]
 - Reporter: Support Team
 - Priority: High
 - Description: "Card type validation only checks basic prefixes, missing many valid cards"
 - Impact: Valid cards being rejected
+- status: [DONE]
+- explanations:
+  - Root cause: The old validation relied on hardcoded prefixes (4/5) for Visa/Mastercard, rejecting Amex, Discover, etc.
+  - Fix: Removed prefix checks and replaced them with Luhn algorithm validation (implemented in VAL-206).
+  - Reason: Allows all valid major card networks to be accepted.
 
 ## Security Issues
 
@@ -167,6 +197,11 @@
 - Priority: Medium
 - Description: "Logout always reports success even when session remains active"
 - Impact: Users think they're logged out when they're not
+- status: [DONE]
+- explanations:
+  - Root cause: The logout mutation only attempted to delete the session from the database if `ctx.user` was present. If the context failed to resolve the user (e.g., edge cases or partial auth), the DB session remained active.
+  - Fix: Updated the logout logic to extract the token from the cookie and delete it from the database unconditionally, regardless of whether `ctx.user` is set.
+  - Reason: Ensures that the session is invalidated in the database whenever the logout endpoint is hit, guaranteeing a complete logout.
 
 ### Ticket PERF-403: Session Expiry [HIGH]
 - Reporter: Security Team

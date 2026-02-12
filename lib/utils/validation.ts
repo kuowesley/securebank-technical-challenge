@@ -119,3 +119,44 @@ export const isValidCardNumber = (value: string) => {
 };
 
 export const isValidBankAccountNumber = (value: string) => /^\d{4,17}$/.test(value);
+
+export const VALID_STATE_CODES = [
+  "AL", "AK", "AZ", "AR", "CA", "CO", "CT", "DE", "FL", "GA",
+  "HI", "ID", "IL", "IN", "IA", "KS", "KY", "LA", "ME", "MD",
+  "MA", "MI", "MN", "MS", "MO", "MT", "NE", "NV", "NH", "NJ",
+  "NM", "NY", "NC", "ND", "OH", "OK", "OR", "PA", "RI", "SC",
+  "SD", "TN", "TX", "UT", "VT", "VA", "WA", "WV", "WI", "WY",
+  "DC", "AS", "GU", "MP", "PR", "VI"
+];
+
+export const validateState = (value: string) => {
+  if (!VALID_STATE_CODES.includes(value.toUpperCase())) {
+    return { valid: false, message: "Invalid state code" };
+  }
+  return { valid: true };
+};
+
+export const validatePhoneNumber = (value: string) => {
+  if (!/^\+?[1-9]\d{7,14}$/.test(value)) {
+    return { valid: false, message: "Invalid phone number (E.164 format expected)" };
+  }
+  return { valid: true };
+};
+
+export const COMMON_TYPOS = [".con", ".cmo", ".cm", "@gamil.com", "@yaho.com"];
+const EMAIL_REGEX = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+
+export const validateEmail = (value: string) => {
+  if (!EMAIL_REGEX.test(value)) {
+    return { valid: false, message: "Invalid email address" };
+  }
+  for (const typo of COMMON_TYPOS) {
+    if (value.toLowerCase().endsWith(typo)) {
+      return {
+        valid: false,
+        message: `Did you mean ${typo.replace(".con", ".com").replace(".cmo", ".com").replace(".cm", ".com")}?`,
+      };
+    }
+  }
+  return { valid: true };
+};
