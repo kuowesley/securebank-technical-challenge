@@ -132,6 +132,11 @@
 - Priority: Critical
 - Description: "Unescaped HTML rendering in transaction descriptions"
 - Impact: Potential for cross-site scripting attacks
+- status: [DONE]
+- explanations:
+  - Root cause: The application used `dangerouslySetInnerHTML` to render transaction descriptions, allowing malicious scripts stored in the database to execute.
+  - Fix: Replaced `dangerouslySetInnerHTML` with standard React text rendering, which automatically escapes HTML content.
+  - Reason: Eliminates the XSS vulnerability by treating all user content as plain text.
 
 ### Ticket SEC-304: Session Management [CRITICAL]
 - Reporter: DevOps Team
