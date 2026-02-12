@@ -147,9 +147,9 @@
 - Impact: Severe privacy and compliance risk
 - status: [DONE]
 - explanations:
-  - Root cause: The `ssn` field was defined as plaintext in the database schema and stored directly from user input without encryption.
-  - Fix: Implemented AES-256-GCM encryption for storage and SHA-256 hashing for uniqueness checks. Updated the database schema to include `ssn_hash`. Added migration logic to encrypt existing plaintext SSNs on startup.
-  - Reason: Ensures SSNs are never stored in plaintext, mitigating data breach risks while maintaining uniqueness constraints securely.
+  - Root cause: SSNs were stored directly in the database as plaintext, exposing sensitive user data.
+  - Fix: Implemented encryption (using `encrypt`) for SSN storage and added a hashed column (`ssn_hash`) for secure uniqueness checks. Updated the database schema to support these columns natively.
+  - Reason: Protects PII at rest with encryption while allowing the system to prevent duplicate registrations via hashing.
 
 ### Ticket SEC-302: Insecure Random Numbers [CRITICAL]
 - Reporter: Security Team

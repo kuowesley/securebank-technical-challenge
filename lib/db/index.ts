@@ -63,17 +63,6 @@ export function initDb() {
     CREATE INDEX IF NOT EXISTS idx_sessions_user_id ON sessions(user_id);
   `);
 
-  // Migration: Add ssn_hash column if it doesn't exist (for existing databases)
-  try {
-    const columns = sqlite.pragma("table_info(users)") as any[];
-    const hasSsnHash = columns.some((col) => col.name === "ssn_hash");
-    if (!hasSsnHash) {
-      sqlite.exec("ALTER TABLE users ADD COLUMN ssn_hash TEXT UNIQUE");
-    }
-  } catch (e) {
-    console.error("Failed to add ssn_hash column:", e);
-  }
-
   // Migration: Encrypt plaintext SSNs
   try {
     const usersWithoutHash = sqlite.prepare("SELECT * FROM users WHERE ssn_hash IS NULL").all();
