@@ -5,8 +5,9 @@ import { TRPCError } from "@trpc/server";
 import { publicProcedure, router } from "../trpc";
 import { db } from "@/lib/db";
 import { users, sessions } from "@/lib/db/schema";
-import { eq } from "drizzle-orm";
+import { eq, or } from "drizzle-orm";
 import { validateDateOfBirth, validatePassword } from "../utils/validation";
+import { encrypt, hash } from "../utils/encryption";
 
 export const authRouter = router({
   signup: publicProcedure
@@ -44,20 +45,28 @@ export const authRouter = router({
       })
     )
     .mutation(async ({ input, ctx }) => {
-      const existingUser = await db.select().from(users).where(eq(users.email, input.email)).get();
+      const ssnHash = hash(input.ssn);
+      const existingUser = await db
+        .select()
+        .from(users)
+        .where(or(eq(users.email, input.email), eq(users.ssnHash, ssnHash)))
+        .get();
 
       if (existingUser) {
         throw new TRPCError({
           code: "CONFLICT",
-          message: "User already exists",
+          message: "User with this email or SSN already exists",
         });
       }
 
       const hashedPassword = await bcrypt.hash(input.password, 10);
+      const encryptedSSN = encrypt(input.ssn);
 
       await db.insert(users).values({
         ...input,
         password: hashedPassword,
+        ssn: encryptedSSN,
+        ssnHash,
       });
 
       // Fetch the created user
@@ -91,7 +100,7 @@ export const authRouter = router({
         (ctx.res as Headers).set("Set-Cookie", `session=${token}; Path=/; HttpOnly; SameSite=Strict; Max-Age=604800`);
       }
 
-      return { user: { ...user, password: undefined }, token };
+      return { user: { ...user, password: undefined, ssn: undefined, ssnHash: undefined }, token };
     }),
 
   login: publicProcedure
@@ -139,7 +148,7 @@ export const authRouter = router({
         (ctx.res as Headers).set("Set-Cookie", `session=${token}; Path=/; HttpOnly; SameSite=Strict; Max-Age=604800`);
       }
 
-      return { user: { ...user, password: undefined }, token };
+      return { user: { ...user, password: undefined, ssn: undefined, ssnHash: undefined }, token };
     }),
 
   logout: publicProcedure.mutation(async ({ ctx }) => {

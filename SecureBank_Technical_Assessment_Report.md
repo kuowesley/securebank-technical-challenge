@@ -110,6 +110,11 @@
 - Priority: Critical
 - Description: "SSNs are stored in plaintext in the database"
 - Impact: Severe privacy and compliance risk
+- status: [DONE]
+- explanations:
+  - Root cause: The `ssn` field was defined as plaintext in the database schema and stored directly from user input without encryption.
+  - Fix: Implemented AES-256-GCM encryption for storage and SHA-256 hashing for uniqueness checks. Updated the database schema to include `ssn_hash`. Added migration logic to encrypt existing plaintext SSNs on startup.
+  - Reason: Ensures SSNs are never stored in plaintext, mitigating data breach risks while maintaining uniqueness constraints securely.
 
 ### Ticket SEC-302: Insecure Random Numbers [CRITICAL]
 - Reporter: Security Team

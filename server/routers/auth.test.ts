@@ -34,6 +34,9 @@ const caller = authRouter.createCaller({
 } as any);
 
 describe('authRouter.signup dateOfBirth validation', () => {
+  let mockValues: any;
+  let mockGet: any;
+
   const baseInput = {
     email: 'test@example.com',
     password: 'StrongP@ssw0rd!',
@@ -50,14 +53,14 @@ describe('authRouter.signup dateOfBirth validation', () => {
   beforeEach(() => {
     vi.clearAllMocks();
 
-    const mockGet = vi.fn();
+    mockGet = vi.fn();
     const mockWhere = vi.fn(() => ({ get: mockGet }));
     const mockFrom = vi.fn(() => ({ where: mockWhere }));
     vi.mocked(db.select).mockImplementation(() => ({
       from: mockFrom,
     } as any));
 
-    const mockValues = vi.fn(() => ({ returning: vi.fn() }));
+    mockValues = vi.fn(() => ({ returning: vi.fn() }));
     vi.mocked(db.insert).mockImplementation(() => ({
       values: mockValues,
     } as any));
@@ -65,10 +68,39 @@ describe('authRouter.signup dateOfBirth validation', () => {
     // Mock for checking existing user (first select call)
     mockGet.mockResolvedValueOnce(undefined);
     // Mock for returning created user (second select call)
-    mockGet.mockResolvedValueOnce({ id: 1, ...baseInput });
+    mockGet.mockResolvedValueOnce({ 
+      id: 1, 
+      ...baseInput, 
+      dateOfBirth: '2000-01-01',
+      ssn: 'encrypted:tag:content', 
+      ssnHash: 'hashedSSN' 
+    });
 
     vi.mocked(bcrypt.hash).mockResolvedValue('hashedpassword' as any);
   });
+
+  it('should encrypt SSN and store hash on signup', async () => {
+    const input = { ...baseInput, dateOfBirth: '2000-01-01' };
+    await caller.signup(input);
+
+    expect(mockValues).toHaveBeenCalled();
+    const insertArgs = mockValues.mock.calls[0][0];
+    expect(insertArgs.ssn).not.toBe(input.ssn); // Should be encrypted
+    expect(insertArgs.ssn).toContain(':'); // IV:Tag:Content format
+    expect(insertArgs.ssnHash).toBeDefined();
+    expect(insertArgs.ssnHash).not.toBe(input.ssn);
+  });
+
+  it('should not return SSN in response', async () => {
+    const input = { ...baseInput, dateOfBirth: '2000-01-01' };
+    const result = await caller.signup(input);
+    
+    // Explicitly check for absence of ssn and ssnHash
+    expect((result.user as any).ssn).toBeUndefined();
+    expect((result.user as any).ssnHash).toBeUndefined();
+    expect(result.user.email).toBe(input.email);
+  });
+
 
   it('should reject a date of birth in the future', async () => {
     const futureDate = new Date();
