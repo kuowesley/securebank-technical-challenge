@@ -4,7 +4,7 @@ import { protectedProcedure, router } from "../trpc";
 import { db } from "@/lib/db";
 import { accounts, transactions } from "@/lib/db/schema";
 import { eq, and } from "drizzle-orm";
-import { isValidCardNumber } from "../utils/validation";
+import { isValidCardNumber } from "@/lib/utils/validation";
 import { generateAccountNumber } from "../utils/account";
 
 export const accountRouter = router({

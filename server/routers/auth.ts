@@ -6,7 +6,7 @@ import { publicProcedure, router } from "../trpc";
 import { db } from "@/lib/db";
 import { users, sessions } from "@/lib/db/schema";
 import { eq, or } from "drizzle-orm";
-import { validateDateOfBirth, validatePassword } from "../utils/validation";
+import { validateDateOfBirth, validatePassword } from "@/lib/utils/validation";
 import { encrypt, hash } from "../utils/encryption";
 
 export const authRouter = router({

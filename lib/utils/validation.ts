@@ -118,4 +118,4 @@ export const isValidCardNumber = (value: string) => {
   return sum % 10 === 0;
 };
 
-
+export const isValidBankAccountNumber = (value: string) => /^\d{4,17}$/.test(value);

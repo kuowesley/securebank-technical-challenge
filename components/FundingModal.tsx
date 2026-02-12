@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { trpc } from "@/lib/trpc/client";
+import { isValidCardNumber, isValidBankAccountNumber } from "@/lib/utils/validation";
 
 interface FundingModalProps {
   accountId: number;
@@ -16,31 +17,6 @@ type FundingFormData = {
   accountNumber: string;
   routingNumber?: string;
 };
-
-const normalizeCardNumber = (value: string) => value.replace(/[\s-]/g, "");
-
-const isValidCardNumber = (value: string) => {
-  const normalized = normalizeCardNumber(value);
-  if (!/^\d{13,19}$/.test(normalized)) {
-    return false;
-  }
-
-  let sum = 0;
-  let shouldDouble = false;
-  for (let i = normalized.length - 1; i >= 0; i -= 1) {
-    let digit = Number(normalized[i]);
-    if (shouldDouble) {
-      digit *= 2;
-      if (digit > 9) digit -= 9;
-    }
-    sum += digit;
-    shouldDouble = !shouldDouble;
-  }
-
-  return sum % 10 === 0;
-};
-
-const isValidBankAccountNumber = (value: string) => /^\d{4,17}$/.test(value);
 
 export function FundingModal({ accountId, onClose, onSuccess }: FundingModalProps) {
   const [error, setError] = useState("");

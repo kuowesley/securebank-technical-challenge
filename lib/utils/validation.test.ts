@@ -1,12 +1,44 @@
 import { describe, it, expect } from 'vitest';
-import { validateDateOfBirth, validatePassword, isValidCardNumber, MIN_PASSWORD_LENGTH } from './validation';
+import { validateDateOfBirth, validatePassword, isValidCardNumber, isValidBankAccountNumber, MIN_PASSWORD_LENGTH } from './validation';
 
 describe('validateDateOfBirth', () => {
   it('should return valid for a correct date', () => {
     const result = validateDateOfBirth('2000-01-01');
     expect(result.valid).toBe(true);
   });
-// ... existing tests ...
+
+  it('should return invalid for future date', () => {
+    const futureDate = new Date();
+    futureDate.setDate(futureDate.getDate() + 1);
+    const dateStr = futureDate.toISOString().split('T')[0];
+    const result = validateDateOfBirth(dateStr);
+    expect(result.valid).toBe(false);
+    expect(result.message).toBe('Date of birth cannot be in the future');
+  });
+
+  it('should return invalid for under 18', () => {
+    const today = new Date();
+    const under18Year = today.getFullYear() - 17;
+    const dateStr = `${under18Year}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+    const result = validateDateOfBirth(dateStr);
+    expect(result.valid).toBe(false);
+    expect(result.message).toContain('at least 18 years old');
+  });
+
+  it('should return invalid for over 120', () => {
+    const today = new Date();
+    const over120Year = today.getFullYear() - 121;
+    const dateStr = `${over120Year}-01-01`;
+    const result = validateDateOfBirth(dateStr);
+    expect(result.valid).toBe(false);
+    expect(result.message).toContain('120 or younger');
+  });
+
+  it('should return invalid for invalid format', () => {
+    expect(validateDateOfBirth('2000/01/01').valid).toBe(false);
+    expect(validateDateOfBirth('invalid').valid).toBe(false);
+  });
+
   it('should return invalid for non-existent date', () => {
     expect(validateDateOfBirth('2000-02-30').valid).toBe(false);
   });
@@ -27,12 +59,6 @@ describe('validatePassword', () => {
   });
 
   it('should return invalid for common password', () => {
-    const commonPass = 'password123'; // Assuming this is length >= 12, but 'password' is only 8. Wait.
-    // 'password' is in the common list. But 'password' is too short (8 chars).
-    // Let's use a common password that is long enough if possible, or just check the common check.
-    // 'password' fails length check too.
-    // '123456789' is 9 chars.
-    // Let's use 'password' and check for "Password is too common" error specifically.
     const result = validatePassword('password');
     expect(result.valid).toBe(false);
     expect(result.errors).toContain('Password is too common');
@@ -88,3 +114,16 @@ describe('isValidCardNumber', () => {
   });
 });
 
+describe('isValidBankAccountNumber', () => {
+  it('should return true for valid bank account number', () => {
+    expect(isValidBankAccountNumber('123456789')).toBe(true);
+    expect(isValidBankAccountNumber('1234')).toBe(true);
+    expect(isValidBankAccountNumber('12345678901234567')).toBe(true);
+  });
+
+  it('should return false for invalid bank account number', () => {
+    expect(isValidBankAccountNumber('123')).toBe(false); // Too short
+    expect(isValidBankAccountNumber('123456789012345678')).toBe(false); // Too long
+    expect(isValidBankAccountNumber('1234a6789')).toBe(false); // Non-numeric
+  });
+});
