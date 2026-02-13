@@ -253,8 +253,10 @@
 - status: [DONE]
 - explanations:
   - Root cause: The balance calculation logic contained a loop that added the transaction amount in 100 tiny increments, introducing significant floating-point precision errors.
-  - Fix: Removed the loop and replaced it with a single, direct addition, rounded to two decimal places (`Math.round((balance + amount) * 100) / 100`).
-  - Reason: Eliminates accumulated floating-point errors, ensuring accurate balance calculations and storage.
+  - Fix: 
+    1.  Removed the loop and replaced it with a single, direct addition.
+    2.  Implemented **atomic database updates** using `db.transaction()` and SQL-level increments (`balance = balance + ?`) instead of read-modify-write in application code.
+  - Reason: Eliminates accumulated floating-point errors and prevents race conditions in high-concurrency scenarios where multiple deposits could overwrite each other.
 
 ### Ticket PERF-407: Performance Degradation [HIGH]
 - Reporter: DevOps
@@ -263,9 +265,12 @@
 - Impact: Poor user experience during peak usage
 - status: [DONE]
 - explanations:
-  - Root cause: `getTransactions` contained an N+1 query problem, fetching the account details for *every* transaction in a loop. Additionally, the database lacked indexes on foreign keys (`account_id`, `user_id`) and sorting columns (`created_at`).
-  - Fix: Refactored `getTransactions` to reuse the already-fetched account details, eliminating the loop query. Added database indexes on `transactions(account_id)`, `transactions(created_at)`, `accounts(user_id)`, and `sessions(user_id)`.
-  - Reason: Reduces database load from O(N) to O(1) for transaction fetching and speeds up lookups and sorting significantly.
+  - Root cause: `getTransactions` contained an N+1 query problem, fetching account details for every transaction. Additionally, the database lacked indexes, and the UI tried to render all history at once.
+  - Fix: 
+    1.  Refactored `getTransactions` to eliminate the N+1 query loop.
+    2.  Added database indexes on `transactions(account_id)`, `transactions(created_at)`, `accounts(user_id)`, and `sessions(user_id)`.
+    3.  Implemented **cursor-based pagination** (infinite scroll) for the transaction list to efficiently handle large datasets.
+  - Reason: Reduces database load from O(N) to O(1) per page and prevents frontend performance bottlenecks by loading data incrementally.
 
 ### Ticket PERF-408: Resource Leak [CRITICAL]
 - Reporter: System Monitoring

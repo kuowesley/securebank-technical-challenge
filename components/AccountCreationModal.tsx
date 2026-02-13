@@ -21,8 +21,12 @@ export function AccountCreationModal({ onClose, onSuccess }: AccountCreationModa
     try {
       await createAccountMutation.mutateAsync({ accountType });
       onSuccess();
-    } catch (err: any) {
-      setError(err.message || "Failed to create account");
+    } catch (err: unknown) {
+      if (err instanceof Error) {
+        setError(err.message || "Failed to create account");
+      } else {
+        setError("Failed to create account");
+      }
     }
   };
 

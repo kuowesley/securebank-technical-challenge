@@ -70,7 +70,7 @@ export function initDb() {
       console.log(`Migrating ${usersWithoutHash.length} users to encrypted SSN storage...`);
       const updateStmt = sqlite.prepare("UPDATE users SET ssn = ?, ssn_hash = ? WHERE id = ?");
 
-      for (const user of usersWithoutHash as any[]) {
+      for (const user of usersWithoutHash as { id: number; ssn: string }[]) {
         try {
           // Encrypt the plaintext SSN
           const encryptedSSN = encrypt(user.ssn);

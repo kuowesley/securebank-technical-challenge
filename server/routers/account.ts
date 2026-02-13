@@ -3,7 +3,7 @@ import { TRPCError } from "@trpc/server";
 import { protectedProcedure, router } from "../trpc";
 import { db } from "@/lib/db";
 import { accounts, transactions } from "@/lib/db/schema";
-import { eq, and, desc } from "drizzle-orm";
+import { eq, and, desc, lt, sql } from "drizzle-orm";
 import { isValidCardNumber } from "@/lib/utils/validation";
 import { generateAccountNumber } from "../utils/account";
 
@@ -123,65 +123,64 @@ export const accountRouter = router({
     .mutation(async ({ input, ctx }) => {
       const amount = Math.round(input.amount * 100) / 100;
 
-      // Verify account belongs to user
-      const account = await db
-        .select()
-        .from(accounts)
-        .where(and(eq(accounts.id, input.accountId), eq(accounts.userId, ctx.user.id)))
-        .get();
+      return await db.transaction(async (tx) => {
+        // Verify account belongs to user and lock it (if DB supports select for update, though SQLite is single-writer anyway)
+        const account = await tx
+          .select()
+          .from(accounts)
+          .where(and(eq(accounts.id, input.accountId), eq(accounts.userId, ctx.user.id)))
+          .get();
 
-      if (!account) {
-        throw new TRPCError({
-          code: "NOT_FOUND",
-          message: "Account not found",
-        });
-      }
+        if (!account) {
+          throw new TRPCError({
+            code: "NOT_FOUND",
+            message: "Account not found",
+          });
+        }
 
-      if (account.status !== "active") {
-        throw new TRPCError({
-          code: "BAD_REQUEST",
-          message: "Account is not active",
-        });
-      }
+        if (account.status !== "active") {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "Account is not active",
+          });
+        }
 
-      // Create transaction
-      await db.insert(transactions).values({
-        accountId: input.accountId,
-        type: "deposit",
-        amount,
-        description: `Funding from ${input.fundingSource.type}`,
-        status: "completed",
-        processedAt: new Date().toISOString(),
+        // Create transaction
+        const [transaction] = await tx
+          .insert(transactions)
+          .values({
+            accountId: input.accountId,
+            type: "deposit",
+            amount,
+            description: `Funding from ${input.fundingSource.type}`,
+            status: "completed",
+            processedAt: new Date().toISOString(),
+          })
+          .returning();
+
+        // Update account balance atomically
+        // Using SQL to increment ensures we don't have race conditions with the read value
+        const [updatedAccount] = await tx
+          .update(accounts)
+          .set({
+            balance: sql`ROUND(${accounts.balance} + ${amount}, 2)`,
+          })
+          .where(eq(accounts.id, input.accountId))
+          .returning();
+
+        return {
+          transaction,
+          newBalance: updatedAccount.balance,
+        };
       });
-
-      // Fetch the created transaction
-      const transaction = await db
-        .select()
-        .from(transactions)
-        .where(eq(transactions.accountId, input.accountId))
-        .orderBy(desc(transactions.id))
-        .limit(1)
-        .get();
-
-      // Update account balance
-      const newBalance = Math.round((account.balance + amount) * 100) / 100;
-      await db
-        .update(accounts)
-        .set({
-          balance: newBalance,
-        })
-        .where(eq(accounts.id, input.accountId));
-
-      return {
-        transaction,
-        newBalance,
-      };
     }),
 
   getTransactions: protectedProcedure
     .input(
       z.object({
         accountId: z.number(),
+        limit: z.number().min(1).max(100).default(20),
+        cursor: z.number().nullish(), // Use transaction ID as cursor for efficient pagination
       })
     )
     .query(async ({ input, ctx }) => {
@@ -199,17 +198,38 @@ export const accountRouter = router({
         });
       }
 
+      const limit = input.limit + 1; // Fetch 1 extra to check if there are more items
+      
+      // Build query conditions
+      const conditions = [eq(transactions.accountId, input.accountId)];
+      
+      // Add cursor condition if present (fetch transactions older/smaller-ID than cursor)
+      if (input.cursor) {
+        conditions.push(lt(transactions.id, input.cursor));
+      }
+
       const accountTransactions = await db
         .select()
         .from(transactions)
-        .where(eq(transactions.accountId, input.accountId))
-        .orderBy(desc(transactions.createdAt));
+        .where(and(...conditions))
+        .orderBy(desc(transactions.id))
+        .limit(limit);
+
+      let nextCursor: number | null = null;
+      
+      if (accountTransactions.length > input.limit) {
+        const nextItem = accountTransactions.pop();
+        nextCursor = nextItem!.id;
+      }
 
       const enrichedTransactions = accountTransactions.map((transaction) => ({
         ...transaction,
         accountType: account.accountType,
       }));
 
-      return enrichedTransactions;
+      return {
+        items: enrichedTransactions,
+        nextCursor,
+      };
     }),
 });

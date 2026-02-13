@@ -1,13 +1,37 @@
 "use client";
 
 import { trpc } from "@/lib/trpc/client";
+import { useEffect, Fragment } from "react";
+import { useInView } from "react-intersection-observer";
 
 interface TransactionListProps {
   accountId: number;
 }
 
 export function TransactionList({ accountId }: TransactionListProps) {
-  const { data: transactions, isLoading } = trpc.account.getTransactions.useQuery({ accountId });
+  const { ref, inView } = useInView();
+  
+  const { 
+    data, 
+    fetchNextPage, 
+    hasNextPage, 
+    isFetchingNextPage, 
+    status 
+  } = trpc.account.getTransactions.useInfiniteQuery(
+    { 
+      accountId, 
+      limit: 20 
+    },
+    {
+      getNextPageParam: (lastPage) => lastPage.nextCursor,
+    }
+  );
+
+  useEffect(() => {
+    if (inView && hasNextPage) {
+      fetchNextPage();
+    }
+  }, [inView, fetchNextPage, hasNextPage]);
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat("en-US", {
@@ -26,7 +50,7 @@ export function TransactionList({ accountId }: TransactionListProps) {
     });
   };
 
-  if (isLoading) {
+  if (status === 'pending') {
     return (
       <div className="bg-white shadow rounded-lg p-6">
         <p className="text-gray-500">Loading transactions...</p>
@@ -34,7 +58,17 @@ export function TransactionList({ accountId }: TransactionListProps) {
     );
   }
 
-  if (!transactions || transactions.length === 0) {
+  if (status === 'error') {
+    return (
+      <div className="bg-white shadow rounded-lg p-6">
+        <p className="text-red-500">Error loading transactions</p>
+      </div>
+    );
+  }
+
+  const hasTransactions = data?.pages[0].items.length > 0;
+
+  if (!hasTransactions) {
     return (
       <div className="bg-white shadow rounded-lg p-6">
         <p className="text-gray-500">No transactions yet.</p>
@@ -57,38 +91,48 @@ export function TransactionList({ accountId }: TransactionListProps) {
           </tr>
         </thead>
         <tbody className="bg-white divide-y divide-gray-200">
-          {transactions.map((transaction) => (
-            <tr key={transaction.id}>
-              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                {formatDate(transaction.createdAt!)}
-              </td>
-              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                <span className={`capitalize ${transaction.type === "deposit" ? "text-green-600" : "text-red-600"}`}>
-                  {transaction.type}
-                </span>
-              </td>
-              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                {transaction.description ? <span>{transaction.description}</span> : "-"}
-              </td>
-              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                <span className={transaction.type === "deposit" ? "text-green-600" : "text-red-600"}>
-                  {transaction.type === "deposit" ? "+" : "-"}
-                  {formatCurrency(transaction.amount)}
-                </span>
-              </td>
-              <td className="px-6 py-4 whitespace-nowrap">
-                <span
-                  className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                    transaction.status === "completed" ? "bg-green-100 text-green-800" : "bg-yellow-100 text-yellow-800"
-                  }`}
-                >
-                  {transaction.status}
-                </span>
-              </td>
-            </tr>
+          {data?.pages.map((page, i) => (
+            <Fragment key={i}>
+              {page.items.map((transaction) => (
+                <tr key={transaction.id}>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    {formatDate(transaction.createdAt!)}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    <span className={`capitalize ${transaction.type === "deposit" ? "text-green-600" : "text-red-600"}`}>
+                      {transaction.type}
+                    </span>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    {transaction.description ? <span>{transaction.description}</span> : "-"}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    <span className={transaction.type === "deposit" ? "text-green-600" : "text-red-600"}>
+                      {transaction.type === "deposit" ? "+" : "-"}
+                      {formatCurrency(transaction.amount)}
+                    </span>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <span
+                      className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                        transaction.status === "completed" ? "bg-green-100 text-green-800" : "bg-yellow-100 text-yellow-800"
+                      }`}
+                    >
+                      {transaction.status}
+                    </span>
+                  </td>
+                </tr>
+              ))}
+            </Fragment>
           ))}
         </tbody>
       </table>
+      {/* Infinite Scroll Trigger */}
+      {hasNextPage && (
+        <div ref={ref} className="p-4 text-center text-gray-500">
+          {isFetchingNextPage ? 'Loading more...' : 'Load more'}
+        </div>
+      )}
     </div>
   );
 }
