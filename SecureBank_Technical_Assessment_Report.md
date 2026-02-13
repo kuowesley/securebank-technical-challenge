@@ -271,6 +271,10 @@
     2.  Added database indexes on `transactions(account_id)`, `transactions(created_at)`, `accounts(user_id)`, and `sessions(user_id)`.
     3.  Implemented **cursor-based pagination** (infinite scroll) for the transaction list to efficiently handle large datasets.
   - Reason: Reduces database load from O(N) to O(1) per page and prevents frontend performance bottlenecks by loading data incrementally.
+  - Note: While application-level performance issues have been resolved,
+  SQLite’s single-writer locking may still limit throughput under heavy concurrent transactions.
+  Enabling WAL mode or migrating to PostgreSQL could further improve scalability,
+  but these changes were considered outside the scope of this assessment.
 
 ### Ticket PERF-408: Resource Leak [CRITICAL]
 - Reporter: System Monitoring
