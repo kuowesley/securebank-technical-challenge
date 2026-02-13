@@ -14,6 +14,7 @@ export default function DashboardPage() {
   const [selectedAccountId, setSelectedAccountId] = useState<number | null>(null);
 
   const { data: accounts, refetch: refetchAccounts } = trpc.account.getAccounts.useQuery();
+  const utils = trpc.useUtils();
   const logoutMutation = trpc.auth.logout.useMutation();
 
   const handleLogout = async () => {
@@ -34,7 +35,7 @@ export default function DashboardPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between h-16">
             <div className="flex items-center">
-              <h1 className="text-xl font-semibold">SecureBank Dashboard</h1>
+              <h1 className="text-xl font-semibold text-gray-900">SecureBank Dashboard</h1>
             </div>
             <div className="flex items-center">
               <button
@@ -92,7 +93,7 @@ export default function DashboardPage() {
               </div>
             ) : (
               <div className="text-center py-12 bg-white rounded-lg shadow">
-                <p className="text-gray-500 mb-4">You don't have any accounts yet.</p>
+                <p className="text-gray-500 mb-4">You don&apos;t have any accounts yet.</p>
               </div>
             )}
 
@@ -130,6 +131,7 @@ export default function DashboardPage() {
           onSuccess={() => {
             setFundingAccountId(null);
             refetchAccounts();
+            utils.account.getTransactions.invalidate({ accountId: fundingAccountId });
           }}
         />
       )}

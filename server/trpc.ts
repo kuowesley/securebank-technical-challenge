@@ -54,11 +54,34 @@ export async function createContext(opts: CreateNextContextOptions | FetchCreate
 
       const session = await db.select().from(sessions).where(eq(sessions.token, token)).get();
 
-      if (session && new Date(session.expiresAt) > new Date()) {
-        user = await db.select().from(users).where(eq(users.id, decoded.userId)).get();
-        const expiresIn = new Date(session.expiresAt).getTime() - new Date().getTime();
-        if (expiresIn < 60000) {
-          console.warn("Session about to expire");
+      if (session) {
+        const now = new Date();
+        const expiry = new Date(session.expiresAt);
+        const safetyWindowMs = 2 * 60 * 1000;
+
+        if (expiry.getTime() > now.getTime() + safetyWindowMs) {
+          user = await db.select().from(users).where(eq(users.id, decoded.userId)).get();
+
+          const expiresInMs = expiry.getTime() - now.getTime();
+          const thirtyMinsInMs = 30 * 60 * 1000;
+
+          if (expiresInMs < thirtyMinsInMs) {
+            const newExpiry = new Date(now.getTime() + 60 * 60 * 1000);
+
+            await db
+              .update(sessions)
+              .set({ expiresAt: newExpiry.toISOString() })
+              .where(eq(sessions.token, token));
+
+            if (res) {
+              const cookieVal = `session=${token}; Path=/; HttpOnly; SameSite=Strict; Max-Age=3600`;
+              if ("setHeader" in res) {
+                res.setHeader("Set-Cookie", cookieVal);
+              } else {
+                (res as Headers).set("Set-Cookie", cookieVal);
+              }
+            }
+          }
         }
       }
     } catch (error) {

@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { trpc } from "@/lib/trpc/client";
+import { isValidCardNumber, isValidBankAccountNumber } from "@/lib/utils/validation";
 
 interface FundingModalProps {
   accountId: number;
@@ -38,6 +39,10 @@ export function FundingModal({ accountId, onClose, onSuccess }: FundingModalProp
 
     try {
       const amount = parseFloat(data.amount);
+      if (!Number.isFinite(amount)) {
+        setError("Amount must be a valid number");
+        return;
+      }
 
       await fundAccountMutation.mutateAsync({
         accountId,
@@ -50,14 +55,18 @@ export function FundingModal({ accountId, onClose, onSuccess }: FundingModalProp
       });
 
       onSuccess();
-    } catch (err: any) {
-      setError(err.message || "Failed to fund account");
+    } catch (err: unknown) {
+      if (err instanceof Error) {
+        setError(err.message || "Failed to fund account");
+      } else {
+        setError("Failed to fund account");
+      }
     }
   };
 
   return (
     <div className="fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center p-4">
-      <div className="bg-white rounded-lg max-w-md w-full p-6">
+      <div className="bg-white rounded-lg max-w-md w-full p-6 text-gray-900">
         <h3 className="text-lg font-medium text-gray-900 mb-4">Fund Your Account</h3>
 
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
@@ -71,11 +80,11 @@ export function FundingModal({ accountId, onClose, onSuccess }: FundingModalProp
                 {...register("amount", {
                   required: "Amount is required",
                   pattern: {
-                    value: /^\d+\.?\d{0,2}$/,
-                    message: "Invalid amount format",
+                    value: /^(0|[1-9]\d*)(\.\d{0,2})?$/,
+                    message: "Invalid amount format (no leading zeros)",
                   },
                   min: {
-                    value: 0.0,
+                    value: 0.01,
                     message: "Amount must be at least $0.01",
                   },
                   max: {
@@ -112,14 +121,14 @@ export function FundingModal({ accountId, onClose, onSuccess }: FundingModalProp
             <input
               {...register("accountNumber", {
                 required: `${fundingType === "card" ? "Card" : "Account"} number is required`,
-                pattern: {
-                  value: fundingType === "card" ? /^\d{16}$/ : /^\d+$/,
-                  message: fundingType === "card" ? "Card number must be 16 digits" : "Invalid account number",
-                },
                 validate: {
                   validCard: (value) => {
                     if (fundingType !== "card") return true;
-                    return value.startsWith("4") || value.startsWith("5") || "Invalid card number";
+                    return isValidCardNumber(value) || "Invalid card number";
+                  },
+                  validAccount: (value) => {
+                    if (fundingType !== "bank") return true;
+                    return isValidBankAccountNumber(value) || "Invalid account number";
                   },
                 },
               })}

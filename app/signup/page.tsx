@@ -5,6 +5,14 @@ import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { trpc } from "@/lib/trpc/client";
 import Link from "next/link";
+import {
+  validateDateOfBirth,
+  validatePassword,
+  validateEmail,
+  validateState,
+  validatePhoneNumber,
+  MIN_PASSWORD_LENGTH,
+} from "@/lib/utils/validation";
 
 type SignupFormData = {
   email: string;
@@ -31,6 +39,7 @@ export default function SignupPage() {
     handleSubmit,
     formState: { errors },
     watch,
+    setValue,
     trigger,
   } = useForm<SignupFormData>();
   const signupMutation = trpc.auth.signup.useMutation();
@@ -59,13 +68,17 @@ export default function SignupPage() {
       setError("");
       await signupMutation.mutateAsync(data);
       router.push("/dashboard");
-    } catch (err: any) {
-      setError(err.message || "Something went wrong");
+    } catch (err: unknown) {
+      if (err instanceof Error) {
+        setError(err.message || "Something went wrong");
+      } else {
+        setError("Something went wrong");
+      }
     }
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-gray-50 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8 text-gray-900">
       <div className="max-w-md w-full space-y-8">
         <div>
           <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">Create your account</h2>
@@ -82,9 +95,16 @@ export default function SignupPage() {
                 <input
                   {...register("email", {
                     required: "Email is required",
-                    pattern: {
-                      value: /^\S+@\S+$/i,
-                      message: "Invalid email address",
+                    validate: (value) => {
+                      const result = validateEmail(value);
+                      return result.valid || result.message!;
+                    },
+                    onChange: (event) => {
+                      const lowercased = event.target.value.toLowerCase();
+                      setValue("email", lowercased, {
+                        shouldValidate: true,
+                        shouldDirty: true,
+                      });
                     },
                   })}
                   type="email"
@@ -101,15 +121,12 @@ export default function SignupPage() {
                   {...register("password", {
                     required: "Password is required",
                     minLength: {
-                      value: 8,
-                      message: "Password must be at least 8 characters",
+                      value: MIN_PASSWORD_LENGTH,
+                      message: `Password must be at least ${MIN_PASSWORD_LENGTH} characters`,
                     },
-                    validate: {
-                      notCommon: (value) => {
-                        const commonPasswords = ["password", "12345678", "qwerty"];
-                        return !commonPasswords.includes(value.toLowerCase()) || "Password is too common";
-                      },
-                      hasNumber: (value) => /\d/.test(value) || "Password must contain a number",
+                    validate: (value) => {
+                      const result = validatePassword(value);
+                      return result.valid || result.errors[0];
                     },
                   })}
                   type="password"
@@ -172,9 +189,9 @@ export default function SignupPage() {
                 <input
                   {...register("phoneNumber", {
                     required: "Phone number is required",
-                    pattern: {
-                      value: /^\d{10}$/,
-                      message: "Phone number must be 10 digits",
+                    validate: (value) => {
+                      const result = validatePhoneNumber(value);
+                      return result.valid || result.message!;
                     },
                   })}
                   type="tel"
@@ -188,8 +205,14 @@ export default function SignupPage() {
                 <label htmlFor="dateOfBirth" className="block text-sm font-medium text-gray-700">
                   Date of Birth
                 </label>
-                <input
-                  {...register("dateOfBirth", { required: "Date of birth is required" })}
+                  <input
+                    {...register("dateOfBirth", {
+                      required: "Date of birth is required",
+                      validate: (value) => {
+                        const result = validateDateOfBirth(value);
+                        return result.valid || result.message!;
+                      },
+                    })}
                   type="date"
                   className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm p-2 border"
                 />
@@ -251,9 +274,9 @@ export default function SignupPage() {
                   <input
                     {...register("state", {
                       required: "State is required",
-                      pattern: {
-                        value: /^[A-Z]{2}$/,
-                        message: "Use 2-letter state code",
+                      validate: (value) => {
+                        const result = validateState(value);
+                        return result.valid || result.message!;
                       },
                     })}
                     type="text"

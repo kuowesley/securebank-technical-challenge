@@ -1,18 +1,14 @@
 import { drizzle } from "drizzle-orm/better-sqlite3";
 import Database from "better-sqlite3";
 import * as schema from "./schema";
+import { encrypt, hash } from "@/server/utils/encryption";
 
 const dbPath = "bank.db";
 
 const sqlite = new Database(dbPath);
 export const db = drizzle(sqlite, { schema });
 
-const connections: Database.Database[] = [];
-
 export function initDb() {
-  const conn = new Database(dbPath);
-  connections.push(conn);
-
   // Create tables if they don't exist
   sqlite.exec(`
     CREATE TABLE IF NOT EXISTS users (
@@ -24,6 +20,7 @@ export function initDb() {
       phone_number TEXT NOT NULL,
       date_of_birth TEXT NOT NULL,
       ssn TEXT NOT NULL,
+      ssn_hash TEXT UNIQUE,
       address TEXT NOT NULL,
       city TEXT NOT NULL,
       state TEXT NOT NULL,
@@ -59,8 +56,38 @@ export function initDb() {
       expires_at TEXT NOT NULL,
       created_at TEXT DEFAULT CURRENT_TIMESTAMP
     );
+
+    CREATE INDEX IF NOT EXISTS idx_accounts_user_id ON accounts(user_id);
+    CREATE INDEX IF NOT EXISTS idx_transactions_account_id ON transactions(account_id);
+    CREATE INDEX IF NOT EXISTS idx_transactions_created_at ON transactions(created_at);
+    CREATE INDEX IF NOT EXISTS idx_sessions_user_id ON sessions(user_id);
   `);
+
+  // Migration: Encrypt plaintext SSNs
+  try {
+    const usersWithoutHash = sqlite.prepare("SELECT * FROM users WHERE ssn_hash IS NULL").all();
+    if (usersWithoutHash.length > 0) {
+      console.log(`Migrating ${usersWithoutHash.length} users to encrypted SSN storage...`);
+      const updateStmt = sqlite.prepare("UPDATE users SET ssn = ?, ssn_hash = ? WHERE id = ?");
+
+      for (const user of usersWithoutHash as { id: number; ssn: string }[]) {
+        try {
+          // Encrypt the plaintext SSN
+          const encryptedSSN = encrypt(user.ssn);
+          // Create the hash for lookup
+          const ssnHash = hash(user.ssn);
+          updateStmt.run(encryptedSSN, ssnHash, user.id);
+        } catch (err) {
+          console.error(`Failed to migrate user ${user.id}:`, err);
+        }
+      }
+      console.log("SSN Migration complete.");
+    }
+  } catch (e) {
+    console.error("SSN Migration failed:", e);
+  }
 }
+
 
 // Initialize database on import
 initDb();

@@ -5,40 +5,103 @@ import { TRPCError } from "@trpc/server";
 import { publicProcedure, router } from "../trpc";
 import { db } from "@/lib/db";
 import { users, sessions } from "@/lib/db/schema";
-import { eq } from "drizzle-orm";
+import { eq, or } from "drizzle-orm";
+import { validateDateOfBirth, validatePassword, validateEmail, validateState, validatePhoneNumber, normalizePhoneNumber } from "@/lib/utils/validation";
+import { encrypt, hash } from "../utils/encryption";
 
 export const authRouter = router({
   signup: publicProcedure
     .input(
       z.object({
-        email: z.string().email().toLowerCase(),
-        password: z.string().min(8),
+        email: z
+          .string()
+          .email()
+          .toLowerCase()
+          .superRefine((value, ctx) => {
+            const validation = validateEmail(value);
+            if (!validation.valid) {
+              ctx.addIssue({
+                code: z.ZodIssueCode.custom,
+                message: validation.message,
+              });
+            }
+          }),
+        password: z.string().superRefine((value, ctx) => {
+          const result = validatePassword(value);
+          if (!result.valid) {
+            result.errors.forEach((msg) => {
+              ctx.addIssue({
+                code: z.ZodIssueCode.custom,
+                message: msg,
+              });
+            });
+          }
+        }),
         firstName: z.string().min(1),
         lastName: z.string().min(1),
-        phoneNumber: z.string().regex(/^\+?\d{10,15}$/),
-        dateOfBirth: z.string(),
+        phoneNumber: z
+          .string()
+          .superRefine((value, ctx) => {
+            const result = validatePhoneNumber(value);
+            if (!result.valid) {
+              ctx.addIssue({
+                code: z.ZodIssueCode.custom,
+                message: result.message,
+              });
+            }
+          })
+          .transform((val) => normalizePhoneNumber(val)),
+        dateOfBirth: z.string().superRefine((value, ctx) => {
+          const validation = validateDateOfBirth(value);
+          if (!validation.valid) {
+            ctx.addIssue({
+              code: z.ZodIssueCode.custom,
+              message: validation.message || "Date of birth must be a valid date",
+            });
+          }
+        }),
         ssn: z.string().regex(/^\d{9}$/),
         address: z.string().min(1),
         city: z.string().min(1),
-        state: z.string().length(2).toUpperCase(),
+        state: z
+          .string()
+          .length(2)
+          .toUpperCase()
+          .superRefine((value, ctx) => {
+            const result = validateState(value);
+            if (!result.valid) {
+              ctx.addIssue({
+                code: z.ZodIssueCode.custom,
+                message: result.message,
+              });
+            }
+          }),
         zipCode: z.string().regex(/^\d{5}$/),
       })
     )
     .mutation(async ({ input, ctx }) => {
-      const existingUser = await db.select().from(users).where(eq(users.email, input.email)).get();
+      const ssnHash = hash(input.ssn);
+      const existingUser = await db
+        .select()
+        .from(users)
+        .where(or(eq(users.email, input.email), eq(users.ssnHash, ssnHash)))
+        .get();
 
       if (existingUser) {
         throw new TRPCError({
           code: "CONFLICT",
-          message: "User already exists",
+          message: "User with this email or SSN already exists",
         });
       }
 
       const hashedPassword = await bcrypt.hash(input.password, 10);
+      const encryptedSSN = encrypt(input.ssn);
 
       await db.insert(users).values({
         ...input,
         password: hashedPassword,
+        ssn: encryptedSSN,
+        ssnHash,
       });
 
       // Fetch the created user
@@ -53,11 +116,11 @@ export const authRouter = router({
 
       // Create session
       const token = jwt.sign({ userId: user.id }, process.env.JWT_SECRET || "temporary-secret-for-interview", {
-        expiresIn: "7d",
+        expiresIn: "1h",
       });
 
       const expiresAt = new Date();
-      expiresAt.setDate(expiresAt.getDate() + 7);
+      expiresAt.setHours(expiresAt.getHours() + 1);
 
       await db.insert(sessions).values({
         userId: user.id,
@@ -67,18 +130,18 @@ export const authRouter = router({
 
       // Set cookie
       if ("setHeader" in ctx.res) {
-        ctx.res.setHeader("Set-Cookie", `session=${token}; Path=/; HttpOnly; SameSite=Strict; Max-Age=604800`);
+        ctx.res.setHeader("Set-Cookie", `session=${token}; Path=/; HttpOnly; SameSite=Strict; Max-Age=3600`);
       } else {
-        (ctx.res as Headers).set("Set-Cookie", `session=${token}; Path=/; HttpOnly; SameSite=Strict; Max-Age=604800`);
+        (ctx.res as Headers).set("Set-Cookie", `session=${token}; Path=/; HttpOnly; SameSite=Strict; Max-Age=3600`);
       }
 
-      return { user: { ...user, password: undefined }, token };
+      return { user: { ...user, password: undefined, ssn: undefined, ssnHash: undefined }, token };
     }),
 
   login: publicProcedure
     .input(
       z.object({
-        email: z.string().email(),
+        email: z.string().email().toLowerCase(),
         password: z.string(),
       })
     )
@@ -102,11 +165,14 @@ export const authRouter = router({
       }
 
       const token = jwt.sign({ userId: user.id }, process.env.JWT_SECRET || "temporary-secret-for-interview", {
-        expiresIn: "7d",
+        expiresIn: "1h",
       });
 
       const expiresAt = new Date();
-      expiresAt.setDate(expiresAt.getDate() + 7);
+      expiresAt.setHours(expiresAt.getHours() + 1);
+
+      // Invalidate existing sessions (enforce single session policy)
+      await db.delete(sessions).where(eq(sessions.userId, user.id));
 
       await db.insert(sessions).values({
         userId: user.id,
@@ -115,30 +181,29 @@ export const authRouter = router({
       });
 
       if ("setHeader" in ctx.res) {
-        ctx.res.setHeader("Set-Cookie", `session=${token}; Path=/; HttpOnly; SameSite=Strict; Max-Age=604800`);
+        ctx.res.setHeader("Set-Cookie", `session=${token}; Path=/; HttpOnly; SameSite=Strict; Max-Age=3600`);
       } else {
-        (ctx.res as Headers).set("Set-Cookie", `session=${token}; Path=/; HttpOnly; SameSite=Strict; Max-Age=604800`);
+        (ctx.res as Headers).set("Set-Cookie", `session=${token}; Path=/; HttpOnly; SameSite=Strict; Max-Age=3600`);
       }
 
-      return { user: { ...user, password: undefined }, token };
+      return { user: { ...user, password: undefined, ssn: undefined, ssnHash: undefined }, token };
     }),
 
   logout: publicProcedure.mutation(async ({ ctx }) => {
-    if (ctx.user) {
-      // Delete session from database
-      let token: string | undefined;
-      if ("cookies" in ctx.req) {
-        token = (ctx.req as any).cookies.session;
-      } else {
-        const cookieHeader = ctx.req.headers.get?.("cookie") || (ctx.req.headers as any).cookie;
-        token = cookieHeader
-          ?.split("; ")
-          .find((c: string) => c.startsWith("session="))
-          ?.split("=")[1];
-      }
-      if (token) {
-        await db.delete(sessions).where(eq(sessions.token, token));
-      }
+    // Try to get token from cookies regardless of whether ctx.user is set
+    let token: string | undefined;
+    if ("cookies" in ctx.req) {
+      token = (ctx.req as any).cookies.session;
+    } else {
+      const cookieHeader = ctx.req.headers.get?.("cookie") || (ctx.req.headers as any).cookie;
+      token = cookieHeader
+        ?.split("; ")
+        .find((c: string) => c.startsWith("session="))
+        ?.split("=")[1];
+    }
+
+    if (token) {
+      await db.delete(sessions).where(eq(sessions.token, token));
     }
 
     if ("setHeader" in ctx.res) {
@@ -147,6 +212,6 @@ export const authRouter = router({
       (ctx.res as Headers).set("Set-Cookie", `session=; Path=/; HttpOnly; SameSite=Strict; Max-Age=0`);
     }
 
-    return { success: true, message: ctx.user ? "Logged out successfully" : "No active session" };
+    return { success: true, message: "Logged out successfully" };
   }),
 });
