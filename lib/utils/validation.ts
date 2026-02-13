@@ -136,8 +136,13 @@ export const validateState = (value: string) => {
   return { valid: true };
 };
 
+export const normalizePhoneNumber = (value: string) => {
+  return value.replace(/[\s\-\(\)\.]/g, "");
+};
+
 export const validatePhoneNumber = (value: string) => {
-  if (!/^\+?[1-9]\d{7,14}$/.test(value)) {
+  const normalized = normalizePhoneNumber(value);
+  if (!/^\+?[1-9]\d{7,14}$/.test(normalized)) {
     return { valid: false, message: "Invalid phone number (E.164 format expected)" };
   }
   return { valid: true };

@@ -8,7 +8,18 @@ import {
   validateEmail,
   validateState,
   validatePhoneNumber,
+  normalizePhoneNumber,
 } from "./validation";
+
+describe("normalizePhoneNumber", () => {
+  it("should strip formatting characters", () => {
+    expect(normalizePhoneNumber("+1 (415) 555-0123")).toBe("+14155550123");
+    expect(normalizePhoneNumber("(415) 555-0123")).toBe("4155550123");
+    expect(normalizePhoneNumber("415-555-0123")).toBe("4155550123");
+    expect(normalizePhoneNumber("415 555 0123")).toBe("4155550123");
+    expect(normalizePhoneNumber("415.555.0123")).toBe("4155550123");
+  });
+});
 
 describe("validateEmail", () => {
   it("should return valid for a correct email", () => {
@@ -44,6 +55,12 @@ describe("validatePhoneNumber", () => {
   it("should return valid for correct E.164 phone number", () => {
     expect(validatePhoneNumber("+14155552671").valid).toBe(true);
     expect(validatePhoneNumber("14155552671").valid).toBe(true);
+  });
+
+  it("should return valid for formatted phone number", () => {
+    expect(validatePhoneNumber("+1 (415) 555-2671").valid).toBe(true);
+    expect(validatePhoneNumber("(415) 555-2671").valid).toBe(true);
+    expect(validatePhoneNumber("415-555-2671").valid).toBe(true);
   });
 
   it("should return invalid for incorrect phone number", () => {

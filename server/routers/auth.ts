@@ -6,7 +6,7 @@ import { publicProcedure, router } from "../trpc";
 import { db } from "@/lib/db";
 import { users, sessions } from "@/lib/db/schema";
 import { eq, or } from "drizzle-orm";
-import { validateDateOfBirth, validatePassword, validateEmail, validateState, validatePhoneNumber } from "@/lib/utils/validation";
+import { validateDateOfBirth, validatePassword, validateEmail, validateState, validatePhoneNumber, normalizePhoneNumber } from "@/lib/utils/validation";
 import { encrypt, hash } from "../utils/encryption";
 
 export const authRouter = router({
@@ -49,7 +49,8 @@ export const authRouter = router({
                 message: result.message,
               });
             }
-          }),
+          })
+          .transform((val) => normalizePhoneNumber(val)),
         dateOfBirth: z.string().superRefine((value, ctx) => {
           const validation = validateDateOfBirth(value);
           if (!validation.valid) {
