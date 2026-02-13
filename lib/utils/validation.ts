@@ -152,9 +152,10 @@ export const validateEmail = (value: string) => {
   }
   for (const typo of COMMON_TYPOS) {
     if (value.toLowerCase().endsWith(typo)) {
+      const corrected = value.replace(new RegExp(`${typo}$`), ".com");
       return {
         valid: false,
-        message: `Did you mean ${typo.replace(".con", ".com").replace(".cmo", ".com").replace(".cm", ".com")}?`,
+        message: `Did you mean ${corrected}?`,
       };
     }
   }

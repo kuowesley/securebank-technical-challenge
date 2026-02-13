@@ -1,7 +1,58 @@
-import { describe, it, expect } from 'vitest';
-import { validateDateOfBirth, validatePassword, isValidCardNumber, isValidBankAccountNumber, MIN_PASSWORD_LENGTH } from './validation';
+import { describe, it, expect } from "vitest";
+import {
+  validateDateOfBirth,
+  validatePassword,
+  isValidCardNumber,
+  isValidBankAccountNumber,
+  MIN_PASSWORD_LENGTH,
+  validateEmail,
+  validateState,
+  validatePhoneNumber,
+} from "./validation";
 
-describe('validateDateOfBirth', () => {
+describe("validateEmail", () => {
+  it("should return valid for a correct email", () => {
+    expect(validateEmail("test@example.com").valid).toBe(true);
+  });
+
+  it("should return invalid for incorrect format", () => {
+    expect(validateEmail("invalid-email").valid).toBe(false);
+    expect(validateEmail("test@").valid).toBe(false);
+    expect(validateEmail("@example.com").valid).toBe(false);
+  });
+
+  it("should return invalid with suggestion for typos", () => {
+    const result = validateEmail("test@example.con");
+    expect(result.valid).toBe(false);
+    expect(result.message).toContain("Did you mean test@example.com?");
+  });
+});
+
+describe("validateState", () => {
+  it("should return valid for correct state code", () => {
+    expect(validateState("CA").valid).toBe(true);
+    expect(validateState("NY").valid).toBe(true);
+  });
+
+  it("should return invalid for incorrect state code", () => {
+    expect(validateState("XX").valid).toBe(false);
+    expect(validateState("Califorina").valid).toBe(false);
+  });
+});
+
+describe("validatePhoneNumber", () => {
+  it("should return valid for correct E.164 phone number", () => {
+    expect(validatePhoneNumber("+14155552671").valid).toBe(true);
+    expect(validatePhoneNumber("14155552671").valid).toBe(true);
+  });
+
+  it("should return invalid for incorrect phone number", () => {
+    expect(validatePhoneNumber("123").valid).toBe(false);
+    expect(validatePhoneNumber("abc").valid).toBe(false);
+  });
+});
+
+describe("validateDateOfBirth", () => {
   it('should return valid for a correct date', () => {
     const result = validateDateOfBirth('2000-01-01');
     expect(result.valid).toBe(true);
