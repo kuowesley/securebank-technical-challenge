@@ -6,6 +6,10 @@ This repository contains a banking application for the Software Development Test
 
 Please see [CHALLENGE.md](./CHALLENGE.md) for complete instructions and requirements.
 
+## 📄 Technical Assessment Report
+
+Please see [ASSESSMENT_REPORT.md](./ASSESSMENT_REPORT.md) for the full analysis and fixes.
+
 ## 🚀 Quick Start
 
 ```bash
