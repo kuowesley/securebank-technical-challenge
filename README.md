@@ -18,6 +18,24 @@ npm run dev
 # Open http://localhost:3000
 ```
 
+## 🔐 Environment Setup
+
+The application uses encryption for sensitive data (SSNs).
+
+### Development
+For local development and testing, the application will automatically use built-in fallback keys if no environment variables are present. **These are for development only.**
+
+### Production
+For production deployment, you **must** provide the following environment variables, or the server will fail to start:
+
+1. Copy `.env.example` to `.env`:
+   ```bash
+   cp .env.example .env
+   ```
+2. Generate secure random keys (e.g., using `openssl rand -hex 32`) and update `.env`:
+   - `ENCRYPTION_KEY`: A 32-byte (64 char) hex string used for AES-256 encryption.
+   - `SSN_INDEX_KEY`: A 32-byte (64 char) hex string used for HMAC-SHA256 hashing.
+
 ## 🛠 Available Scripts
 
 - `npm run dev` - Start development server

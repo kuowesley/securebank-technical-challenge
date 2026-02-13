@@ -148,8 +148,12 @@
 - status: [DONE]
 - explanations:
   - Root cause: SSNs were stored directly in the database as plaintext, exposing sensitive user data.
-  - Fix: Implemented encryption (using `encrypt`) for SSN storage and added a hashed column (`ssn_hash`) for secure uniqueness checks. Updated the database schema to support these columns natively.
-  - Reason: Protects PII at rest with encryption while allowing the system to prevent duplicate registrations via hashing.
+  - Fix: 
+    1.  Implemented **AES-256-GCM encryption** for SSN storage.
+    2.  Added a **hashed blind index** using **HMAC-SHA256** (with a dedicated `SSN_INDEX_KEY` as a pepper) to securely check for uniqueness without decryption, preventing rainbow table attacks.
+    3.  Enforced strict environment variable checks in production (app crashes if keys are missing), while allowing safe, labeled fallback keys for local development to ensure the app is runnable out-of-the-box.
+    4.  Added `.env.example` and updated `README.md` with security setup instructions.
+  - Reason: Protects PII at rest with strong encryption and robust hashing, ensuring production security while maintaining developer experience.
 
 ### Ticket SEC-302: Insecure Random Numbers [CRITICAL]
 - Reporter: Security Team

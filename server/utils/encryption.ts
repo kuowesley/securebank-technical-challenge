@@ -2,12 +2,32 @@ import crypto from 'crypto';
 
 const ALGORITHM = 'aes-256-gcm';
 
-// In a real app, this key should be in process.env.ENCRYPTION_KEY and properly managed.
-// For this assessment, we use a fixed fallback if the env var is missing.
-// The key must be 32 bytes (256 bits).
-const ENCRYPTION_KEY = process.env.ENCRYPTION_KEY 
-  ? Buffer.from(process.env.ENCRYPTION_KEY, 'hex') 
-  : crypto.createHash('sha256').update('secure-bank-fallback-key').digest();
+const getKey = (envVarName: string, fallbackSecret: string): Buffer => {
+  const envValue = process.env[envVarName];
+
+  if (envValue) {
+    // Expecting 32-byte hex string in env var
+    const key = Buffer.from(envValue, 'hex');
+
+    if (key.length !== 32) {
+      throw new Error(`${envVarName} must be 32 bytes`);
+    }
+
+    return key;
+  }
+
+  if (process.env.NODE_ENV === 'production') {
+    throw new Error(`CRITICAL SECURITY ERROR: Missing ${envVarName} environment variable in production. Server cannot start securely.`);
+  }
+
+  // Fallback for Development/Test only
+  // console.warn(`[SECURITY WARNING] Using insecure fallback for ${envVarName}. DO NOT deploy this to production.`);
+  return crypto.createHash('sha256').update(fallbackSecret).digest();
+};
+
+// 32 bytes (256 bits) keys
+const ENCRYPTION_KEY = getKey('ENCRYPTION_KEY', 'secure-bank-fallback-encryption-key-dev-only');
+const SSN_INDEX_KEY = getKey('SSN_INDEX_KEY', 'secure-bank-fallback-ssn-index-key-dev-only');
 
 export const encrypt = (text: string) => {
   const iv = crypto.randomBytes(16);
@@ -24,9 +44,6 @@ export const encrypt = (text: string) => {
 
 export const decrypt = (text: string) => {
   const parts = text.split(':');
-  // Check if it's already encrypted format. If not (legacy plaintext), return as is or handle error.
-  // For migration purposes, if it doesn't match format, we assume it's plaintext and return it?
-  // No, decrypt should expect encrypted text. Migration logic should handle detection.
   if (parts.length !== 3) {
     throw new Error('Invalid encrypted text format');
   }
@@ -45,6 +62,9 @@ export const decrypt = (text: string) => {
 };
 
 export const hash = (text: string) => {
-  // Use SHA-256 for the blind index (hashing SSN for uniqueness checks)
-  return crypto.createHash('sha256').update(text).digest('hex');
+  // Use HMAC-SHA256 for the blind index (hashing SSN for uniqueness checks)
+  // HMAC prevents rainbow table attacks since the attacker needs the SSN_INDEX_KEY
+  const hmac = crypto.createHmac('sha256', SSN_INDEX_KEY);
+  hmac.update(text);
+  return hmac.digest('hex');
 };
