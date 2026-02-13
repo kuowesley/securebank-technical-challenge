@@ -286,3 +286,8 @@
   - Root cause: The database initialization logic in `lib/db/index.ts` created a secondary connection (`const conn = new Database(dbPath)`) on every startup/reload without using or closing it.
   - Fix: Removed the redundant connection creation and the unused `connections` array.
   - Reason: Prevents file descriptor exhaustion and database lock issues by ensuring only the primary Drizzle connection is used.
+
+## Future Improvements
+- Add a background job queue for notifications, reconciliation, and other slow or retryable tasks.
+- Improve observability with structured logs, metrics, and audit trails for critical flows.
+- Evaluate database scalability options (WAL mode or PostgreSQL) for higher concurrency.
