@@ -18,6 +18,20 @@ npm run dev
 # Open http://localhost:3000
 ```
 
+## ✅ Running Tests
+
+```bash
+# Run the test suite
+npm test
+```
+
+## 🧪 Test Structure
+
+- `lib/utils/validation.test.ts` - Input validation helpers
+- `server/routers/account.test.ts` - Account router behavior
+- `server/routers/auth.test.ts` - Auth router behavior
+- `server/utils/account.test.ts` - Account utility logic
+
 ## 🔐 Environment Setup
 
 The application uses encryption for sensitive data (SSNs).
@@ -42,6 +56,6 @@ For production deployment, you **must** provide the following environment variab
 - `npm run build` - Build for production
 - `npm run db:list-users` - List all users in database
 - `npm run db:clear` - Clear all database data
-- `npm test` - Run tests (you'll need to configure this)
+- `npm test` - Run tests
 
 Good luck with the challenge!
