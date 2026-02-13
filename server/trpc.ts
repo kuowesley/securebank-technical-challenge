@@ -54,30 +54,32 @@ export async function createContext(opts: CreateNextContextOptions | FetchCreate
 
       const session = await db.select().from(sessions).where(eq(sessions.token, token)).get();
 
-      if (session && new Date(session.expiresAt) > new Date()) {
-        user = await db.select().from(users).where(eq(users.id, decoded.userId)).get();
-        
-        // Sliding Expiration: Refresh session if less than 30 mins remaining
+      if (session) {
         const now = new Date();
         const expiry = new Date(session.expiresAt);
-        const expiresInMs = expiry.getTime() - now.getTime();
-        const thirtyMinsInMs = 30 * 60 * 1000;
+        const safetyWindowMs = 2 * 60 * 1000;
 
-        if (expiresInMs < thirtyMinsInMs) {
-          const newExpiry = new Date(now.getTime() + 60 * 60 * 1000); // Extend by 1 hour
-          
-          await db
-            .update(sessions)
-            .set({ expiresAt: newExpiry.toISOString() })
-            .where(eq(sessions.token, token));
+        if (expiry.getTime() > now.getTime() + safetyWindowMs) {
+          user = await db.select().from(users).where(eq(users.id, decoded.userId)).get();
 
-          // Refresh cookie
-          if (res) {
-            const cookieVal = `session=${token}; Path=/; HttpOnly; SameSite=Strict; Max-Age=3600`;
-            if ("setHeader" in res) {
-              res.setHeader("Set-Cookie", cookieVal);
-            } else {
-              (res as Headers).set("Set-Cookie", cookieVal);
+          const expiresInMs = expiry.getTime() - now.getTime();
+          const thirtyMinsInMs = 30 * 60 * 1000;
+
+          if (expiresInMs < thirtyMinsInMs) {
+            const newExpiry = new Date(now.getTime() + 60 * 60 * 1000);
+
+            await db
+              .update(sessions)
+              .set({ expiresAt: newExpiry.toISOString() })
+              .where(eq(sessions.token, token));
+
+            if (res) {
+              const cookieVal = `session=${token}; Path=/; HttpOnly; SameSite=Strict; Max-Age=3600`;
+              if ("setHeader" in res) {
+                res.setHeader("Set-Cookie", cookieVal);
+              } else {
+                (res as Headers).set("Set-Cookie", cookieVal);
+              }
             }
           }
         }

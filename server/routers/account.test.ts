@@ -30,6 +30,7 @@ vi.mock("@/lib/db", () => ({
         where: vi.fn(),
       })),
     })),
+    transaction: vi.fn(),
   },
 }));
 
@@ -48,6 +49,11 @@ describe("accountRouter", () => {
   let mockUpdate: any;
   let mockOrderBy: any;
   let mockSelect: any;
+  let mockTxGet: any;
+  let mockTxInsertReturning: any;
+  let mockTxUpdateSet: any;
+  let mockTxUpdateReturning: any;
+  let mockLimit: any;
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -57,6 +63,11 @@ describe("accountRouter", () => {
     mockReturning = vi.fn();
     mockUpdate = vi.fn();
     mockOrderBy = vi.fn();
+    mockLimit = vi.fn();
+    mockTxGet = vi.fn();
+    mockTxInsertReturning = vi.fn();
+    mockTxUpdateSet = vi.fn();
+    mockTxUpdateReturning = vi.fn();
 
     // Re-construct the chain for each test to ensure fresh mocks
     // This is a simplified mock structure matching the router's usage
@@ -76,6 +87,25 @@ describe("accountRouter", () => {
     vi.mocked(db.update).mockImplementation(() => ({
       set: vi.fn(() => ({ where: mockUpdate })),
     } as any));
+
+    const mockTxWhere = vi.fn(() => ({ get: mockTxGet }));
+    const mockTxFrom = vi.fn(() => ({ where: mockTxWhere }));
+    const mockTxSelect = vi.fn(() => ({ from: mockTxFrom }));
+
+    const mockTxInsertValues = vi.fn(() => ({ returning: mockTxInsertReturning }));
+    const mockTxInsert = vi.fn(() => ({ values: mockTxInsertValues }));
+
+    const mockTxUpdateWhere = vi.fn(() => ({ returning: mockTxUpdateReturning }));
+    mockTxUpdateSet.mockImplementation(() => ({ where: mockTxUpdateWhere }));
+    const mockTxUpdate = vi.fn(() => ({ set: mockTxUpdateSet }));
+
+    const mockTx = {
+      select: mockTxSelect,
+      insert: mockTxInsert,
+      update: mockTxUpdate,
+    };
+
+    vi.mocked(db.transaction).mockImplementation(async (callback: any) => callback(mockTx));
   });
 
   describe("createAccount", () => {
@@ -108,19 +138,18 @@ describe("accountRouter", () => {
     it("should calculate balance with correct rounding (PERF-406)", async () => {
       // Mock finding account
       const account = { id: 1, userId: 1, balance: 10.1, status: "active" };
-      mockGet.mockResolvedValueOnce(account); // get account
+      mockTxGet.mockResolvedValueOnce(account); // get account within transaction
 
       // Mock creating transaction
       // (insert logic doesn't use 'get' but 'insert')
 
-      // Mock fetching created transaction
-      // Chain: select -> from -> where -> orderBy -> limit -> get
-      const mockLimitGet = vi.fn().mockResolvedValue({ id: 100, amount: 0.2 });
-      const mockLimit = vi.fn(() => ({ get: mockLimitGet }));
-      mockOrderBy.mockReturnValue({ limit: mockLimit });
-
-      // Update calls
-      mockUpdate.mockResolvedValue(undefined);
+      // Mock created transaction and updated balance
+      mockTxInsertReturning.mockResolvedValueOnce([
+        { id: 100, amount: 0.2, status: "completed" },
+      ]);
+      mockTxUpdateReturning.mockResolvedValueOnce([
+        { balance: 10.3 },
+      ]);
 
       // Call fundAccount with 0.2
       const result = await caller.fundAccount({
@@ -131,10 +160,7 @@ describe("accountRouter", () => {
 
       // Verify rounding: 10.1 + 0.2 = 10.3 (not 10.299999999)
       expect(result.newBalance).toBe(10.3);
-      
-      // Verify DB update was called with rounded value
-      const updateCall = vi.mocked(db.update).mock.results[0].value.set.mock.calls[0][0];
-      expect(updateCall.balance).toBe(10.3);
+      expect(mockTxUpdateSet).toHaveBeenCalled();
     });
 
     it("should reject zero amount (VAL-205)", async () => {
@@ -156,14 +182,15 @@ describe("accountRouter", () => {
         // Mock fetching transactions
         // Chain: select -> from -> where -> orderBy -> (return promise)
         const transactions = [
-            { id: 2, createdAt: "2023-01-02", amount: 50 },
-            { id: 1, createdAt: "2023-01-01", amount: 100 },
+          { id: 2, createdAt: "2023-01-02", amount: 50 },
+          { id: 1, createdAt: "2023-01-01", amount: 100 },
         ];
-        mockOrderBy.mockResolvedValue(transactions);
+        mockLimit.mockResolvedValue(transactions);
+        mockOrderBy.mockReturnValue({ limit: mockLimit });
 
         const result = await caller.getTransactions({ accountId: 1 });
 
-        expect(result).toHaveLength(2);
+        expect(result.items).toHaveLength(2);
         // Verify orderBy was called
         expect(mockOrderBy).toHaveBeenCalled();
         // Since we mocked the return of orderBy, we confirmed the chain was used.

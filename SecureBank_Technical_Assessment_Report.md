@@ -8,7 +8,7 @@
 
 ## UI Issues
 
-### Ticket UI-101: Dark Mode Text Visibility [LOW]
+### Ticket UI-101: Dark Mode Text Visibility [MEDIUM]
 - Reporter: Sarah Chen
 - Priority: Medium
 - Description: "When using dark mode, the text I type into forms appears white on a white background, making it impossible to see what I'm typing."
@@ -36,7 +36,7 @@
 - status: [DONE]
 - explanations:
   - Root cause: Loose regex pattern validation and lack of typo checking. Silent lowercasing caused login issues if user typed uppercase later.
-  - Fix: Implemented strict regex validation and added typo detection (e.g., .con -> .com suggestions). Ensured consistent lowercasing on both signup and login.
+  - Fix: Implemented strict regex validation and added typo detection (e.g., .con -> .com suggestions). Ensured consistent lowercasing on signup, and auto-lowercased the signup email input for immediate user feedback.
   - Reason: Prevents invalid emails and ensures user can access their account regardless of input case.
 
 ### Ticket VAL-202: Date of Birth Validation [CRITICAL]
@@ -219,8 +219,8 @@
 - Impact: Security risk near session expiration
 - status: [DONE]
 - explanations:
-  - Root cause: Sessions had a long fixed duration (7 days) with no renewal logic, leaving them valid even if the user went inactive, or forcing abrupt logouts.
-  - Fix: Reduced session duration to 1 hour and implemented sliding expiration. If a user makes a request with <30 mins remaining, the session is extended by another hour.
+  - Root cause: Session validity check used `now <= expiresAt` with no safety window; near-expiry tokens remained accepted and clock skew could extend risk.
+  - Fix: Added a 2-minute safety window to the expiry check, reduced session duration to 1 hour, and implemented sliding expiration. If a user makes a request with <30 mins remaining, the session is extended by another hour.
   - Reason: Balances security (short windows) with usability (active users stay logged in).
 
 ### Ticket PERF-404: Transaction Sorting [MEDIUM]

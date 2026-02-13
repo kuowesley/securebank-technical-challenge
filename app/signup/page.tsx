@@ -39,6 +39,7 @@ export default function SignupPage() {
     handleSubmit,
     formState: { errors },
     watch,
+    setValue,
     trigger,
   } = useForm<SignupFormData>();
   const signupMutation = trpc.auth.signup.useMutation();
@@ -97,6 +98,13 @@ export default function SignupPage() {
                     validate: (value) => {
                       const result = validateEmail(value);
                       return result.valid || result.message!;
+                    },
+                    onChange: (event) => {
+                      const lowercased = event.target.value.toLowerCase();
+                      setValue("email", lowercased, {
+                        shouldValidate: true,
+                        shouldDirty: true,
+                      });
                     },
                   })}
                   type="email"
